@@ -1,0 +1,125 @@
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #0c0f16;
+    color: #f4f4f4;
+}
+
+.navbar {
+    background: #111827;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.navbar a {
+    color: #e5e7eb;
+    text-decoration: none;
+    margin-right: 15px;
+}
+
+.navbar a:hover {
+    color: #60a5fa;
+}
+
+.container {
+    padding: 20px;
+}
+
+.card {
+    background: #111827;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.stat-box {
+    background: #1f2937;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #2563eb;
+    color: #f9fafb;
+    font-weight: 500;
+}
+
+.btn-secondary {
+    background: #374151;
+}
+
+.btn-danger {
+    background: #dc2626;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #4b5563;
+    background: #0f172a;
+    color: #e5e7eb;
+    margin-bottom: 10px;
+}
+
+label {
+    display: block;
+    margin-bottom: 4px;
+    color: #9ca3af;
+}
+
+.live-wrapper {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.live-feed {
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.live-feed img {
+    width: 100%;
+    display: block;
+}
+
+.predictions-panel {
+    background: #111827;
+    padding: 16px;
+    border-radius: 10px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+}
+
+.badge-normal {
+    background: #16a34a33;
+    color: #86efac;
+}
+
+.badge-danger {
+    background: #dc262633;
+    color: #fecaca;
+}

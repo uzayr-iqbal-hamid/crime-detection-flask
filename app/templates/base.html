@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}Crime Detection System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+<nav class="navbar">
+    <div>
+        <a href="{{ url_for('dashboard.dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('detection.live_default') }}">Live Detection</a>
+        <a href="{{ url_for('dashboard.profile') }}">Profile</a>
+    </div>
+    <div>
+        <span style="margin-right: 15px;">
+            Uptime: {{ (uptime_seconds // 3600) }}h {{ (uptime_seconds // 60) % 60 }}m
+        </span>
+        {% if current_user.is_authenticated %}
+            <span style="margin-right: 10px;">{{ current_user.username }} ({{ current_user.role }})</span>
+            <a href="{{ url_for('auth.logout') }}">Logout</a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}">Login</a>
+        {% endif %}
+    </div>
+</nav>
+
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+          {% for category, message in messages %}
+            <div class="card" style="border-left:4px solid #f97316;">
+                {{ message }}
+            </div>
+          {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</div>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

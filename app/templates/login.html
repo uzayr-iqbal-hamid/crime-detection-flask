@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Crime Detection{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 420px; margin: 60px auto;">
+    <h2 style="margin-top: 0;">Login</h2>
+    <form method="POST">
+        <label for="username">Username or Email</label>
+        <input type="text" name="username" id="username" class="form-control" required>
+
+        <label for="password">Password</label>
+        <input type="password" name="password" id="password" class="form-control" required>
+
+        <button class="btn" type="submit">Login</button>
+    </form>
+</div>
+{% endblock %}

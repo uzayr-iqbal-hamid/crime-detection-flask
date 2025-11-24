@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Crime Detection{% endblock %}
+
+{% block content %}
+<h1>System Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-box">
+        <h3>Total Detections</h3>
+        <p style="font-size: 2rem; margin: 0;">{{ total_detections }}</p>
+    </div>
+    <div class="stat-box">
+        <h3>Active Cameras</h3>
+        <p style="font-size: 2rem; margin: 0;">{{ total_cameras }}</p>
+    </div>
+    <div class="stat-box">
+        <h3>Uptime</h3>
+        <p style="font-size: 1.2rem; margin: 0;">
+            {{ (uptime_seconds // 3600) }}h {{ (uptime_seconds // 60) % 60 }}m {{ uptime_seconds % 60 }}s
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Detections</h2>
+    {% if latest_detections %}
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid #374151;">
+                    <th align="left">Time</th>
+                    <th align="left">Camera</th>
+                    <th align="left">Label</th>
+                    <th align="left">Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for d in latest_detections %}
+                <tr style="border-bottom: 1px solid #111827;">
+                    <td>{{ d.timestamp }}</td>
+                    <td>{{ d.camera.name if d.camera else d.camera_id }}</td>
+                    <td>{{ d.crime_label }}</td>
+                    <td>{{ "%.2f"|format(d.confidence) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No detections yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

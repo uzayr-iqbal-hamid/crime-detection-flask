@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Live Detection - Crime Detection{% endblock %}
+
+{% block content %}
+<h1>Live Crime Detection</h1>
+
+<div class="card">
+    <form method="GET" action="{{ url_for('detection.live_camera', camera_id=selected_camera.id) }}">
+        <label for="camera-select">Camera</label>
+        <select id="camera-select" name="camera_id" class="form-control"
+                onchange="window.location.href='/detection/live/' + this.value;">
+            {% for cam in cameras %}
+                <option value="{{ cam.id }}" {% if cam.id == selected_camera.id %}selected{% endif %}>
+                    {{ cam.name }} ({{ cam.source }})
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <div class="live-wrapper" style="margin-top: 20px;">
+        <div class="live-feed">
+            <img src="{{ url_for('detection.stream', camera_id=selected_camera.id) }}" alt="Live feed">
+        </div>
+
+        <div class="predictions-panel">
+            <h3>Current Prediction</h3>
+            <div id="prediction-badge" class="badge badge-normal">
+                <span id="prediction-label">Loading...</span>
+            </div>
+            <p style="margin-top: 10px;">
+                Confidence:
+                <span id="prediction-confidence">-</span>
+            </p>
+            <p style="font-size: 0.85rem; color: #9ca3af;">
+                Predictions are generated in real-time by the deep learning model
+                and overlaid on the video frames. This panel shows the latest
+                label and confidence.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/live.js') }}"></script>
+<script>
+    startPredictionPolling({{ selected_camera.id }});
+</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Crime Detection{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2>Profile</h2>
+    <form method="POST">
+        <label for="full_name">Full Name</label>
+        <input class="form-control" type="text" id="full_name" name="full_name"
+               value="{{ current_user.full_name or '' }}">
+
+        <label for="organization">Organization</label>
+        <input class="form-control" type="text" id="organization" name="organization"
+               value="{{ current_user.organization or '' }}">
+
+        <label for="phone">Phone</label>
+        <input class="form-control" type="text" id="phone" name="phone"
+               value="{{ current_user.phone or '' }}">
+
+        <button class="btn" type="submit">Save</button>
+    </form>
+</div>
+{% endblock %}

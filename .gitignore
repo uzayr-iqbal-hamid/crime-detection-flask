@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env
+*.env
+
+# Flask / DB
+instance/
+app.db
+
+# Migrations cache
+migrations/versions/__pycache__/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Model / large files (keep HF stuff out of repo)
+models/
+*.safetensors
+
+# HuggingFace / cache (just in case)
+.cache/
