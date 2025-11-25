@@ -12,30 +12,57 @@ from .model_inference import CrimeModel
 
 
 class CameraStream:
+    """
+    v2: decouple capture and inference.
+
+    - Capture thread: only reads frames and updates shared buffers.
+    - Inference thread: periodically copies the buffer and runs the model.
+    - Streaming: always reads last_frame, overlays latest_detection on-the-fly.
+
+    Result: video stream stays smooth even if inference is slow.
+    """
+
     def __init__(self, camera_id: int, source: str, model: CrimeModel, app):
         self.camera_id = camera_id
         self.source = source
         self.model = model
-        self.app = app
+        self.app = app  # real Flask app object
 
-        self.capture = None
-        self.lock = threading.Lock()
+        self.capture: Optional[cv2.VideoCapture] = None
         self.running = False
 
-        self.latest_detection: Optional[Tuple[str, float]] = None
-        self._last_frame = None
+        self.capture_thread: Optional[threading.Thread] = None
+        self.inference_thread: Optional[threading.Thread] = None
 
-        # Sliding window of frames for VideoMAE
+        self.lock = threading.Lock()
+        self._last_frame = None  # last frame for streaming
+
+        # Sliding buffer of recent frames for VideoMAE
         self.clip_buffer: List = []
-        self.clip_max_len = self.model.num_frames  # 16
-        self.inference_stride = 8  # run inference every 8 frames
-        self._frame_count = 0
+        self.clip_max_len = self.model.num_frames  # e.g. 16 frames
+
+        self.latest_detection: Optional[Tuple[str, float]] = None
+
+        # How often to run inference (seconds)
+        self.inference_interval = 1.5
 
     def start(self):
         if self.running:
             return
+
         self.running = True
-        threading.Thread(target=self._capture_loop, daemon=True).start()
+
+        # Start capture loop (grabs frames continuously)
+        self.capture_thread = threading.Thread(
+            target=self._capture_loop, daemon=True
+        )
+        self.capture_thread.start()
+
+        # Start inference loop (periodically runs the model)
+        self.inference_thread = threading.Thread(
+            target=self._inference_loop, daemon=True
+        )
+        self.inference_thread.start()
 
     def stop(self):
         self.running = False
@@ -44,7 +71,6 @@ class CameraStream:
             self.capture = None
 
     def _open_capture(self):
-        # Source can be webcam index ("0", "1") or RTSP/HTTP URL
         try:
             idx = int(self.source)
             self.capture = cv2.VideoCapture(idx)
@@ -64,44 +90,76 @@ class CameraStream:
                 time.sleep(0.1)
                 continue
 
-            self._frame_count += 1
+            # Update last_frame and clip_buffer under lock
+            with self.lock:
+                # Keep a copy for streaming
+                self._last_frame = frame.copy()
 
-            # Update sliding buffer
-            self.clip_buffer.append(frame.copy())
-            if len(self.clip_buffer) > self.clip_max_len:
-                self.clip_buffer.pop(0)
+                # Add to clip buffer for inference
+                self.clip_buffer.append(frame.copy())
+                # Keep up to 2 * clip_max_len frames to give inference some history
+                max_buffer = self.clip_max_len * 2
+                if len(self.clip_buffer) > max_buffer:
+                    self.clip_buffer = self.clip_buffer[-max_buffer:]
 
-            # Run inference every 'inference_stride' frames,
-            # but only when we have enough frames in the buffer
-            if len(self.clip_buffer) >= self.clip_max_len and \
-               (self._frame_count % self.inference_stride == 0):
-                try:
-                    label, conf = self.model.predict_clip(self.clip_buffer)
-                    self.latest_detection = (label, conf)
+            # Target ~30 FPS capture
+            time.sleep(0.03)
 
-                    # Save detection to DB if anomalous and confident
-                    if label != "Normal Videos" and conf >= 0.8:
-                        try:
-                            # Push an app context so db.session is valid in this thread
-                            with self.app.app_context():
-                                det = Detection(
-                                    camera_id=self.camera_id,
-                                    crime_label=label,
-                                    confidence=conf,
-                                    frame_path=None,
-                                )
-                                db.session.add(det)
-                                db.session.commit()
-                        except Exception as e:
-                            print(f"[CameraStream] DB error on camera {self.camera_id}: {e}")
-                            
-                except Exception as e:
-                    # Do not crash the stream on model errors
-                    print(f"[CameraStream] Inference error on camera {self.camera_id}: {e}")
+        self.stop()
 
-            # Overlay last known prediction on the current frame
-            if self.latest_detection:
-                label, conf = self.latest_detection
+    def _inference_loop(self):
+        while self.running:
+            time.sleep(self.inference_interval)
+
+            # Snapshot of the buffer
+            with self.lock:
+                if len(self.clip_buffer) < self.clip_max_len:
+                    continue
+                # Use the last `clip_max_len` frames
+                frames_for_model = list(self.clip_buffer[-self.clip_max_len:])
+
+            try:
+                label, conf = self.model.predict_clip(frames_for_model)
+                self.latest_detection = (label, conf)
+
+                # Log only anomalous events with good confidence
+                if label != "Normal Videos" and conf >= 0.8:
+                    try:
+                        # DB operations need an app context in this thread
+                        with self.app.app_context():
+                            det = Detection(
+                                camera_id=self.camera_id,
+                                crime_label=label,
+                                confidence=conf,
+                                frame_path=None,
+                            )
+                            db.session.add(det)
+                            db.session.commit()
+                    except Exception as e:
+                        print(f"[CameraStream] DB error on camera {self.camera_id}: {e}")
+
+            except Exception as e:
+                # Do not crash the thread on model errors
+                print(f"[CameraStream] Inference error on camera {self.camera_id}: {e}")
+
+    def frames(self):
+        """
+        Generator that yields JPEG bytes for MJPEG streaming.
+
+        Uses the most recent frame and overlays the latest prediction text.
+        """
+        while self.running:
+            with self.lock:
+                frame = None if self._last_frame is None else self._last_frame.copy()
+                detection = self.latest_detection
+
+            if frame is None:
+                time.sleep(0.05)
+                continue
+
+            # Overlay prediction text (this is cheap)
+            if detection:
+                label, conf = detection
                 text = f"{label} ({conf:.2f})"
             else:
                 text = "Predicting..."
@@ -115,24 +173,6 @@ class CameraStream:
                 (0, 0, 255),
                 2,
             )
-
-            with self.lock:
-                self._last_frame = frame
-
-            time.sleep(0.03)  # ~30 FPS
-
-        self.stop()
-
-    def frames(self):
-        """Generator that yields JPEG bytes for MJPEG streaming."""
-        while self.running:
-            frame = None
-            with self.lock:
-                frame = self._last_frame
-
-            if frame is None:
-                time.sleep(0.05)
-                continue
 
             ret, jpeg = cv2.imencode(".jpg", frame)
             if not ret:
@@ -149,6 +189,7 @@ class CameraManager:
     _lock = threading.Lock()
 
     def __init__(self, model_name_or_path: str):
+        # Capture the real app object while in request context
         self.app = current_app._get_current_object()
         self.model = CrimeModel.get_instance(model_name_or_path)
         self.streams: Dict[int, CameraStream] = {}
