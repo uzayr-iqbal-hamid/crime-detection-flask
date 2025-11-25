@@ -123,3 +123,73 @@ label {
     background: #dc262633;
     color: #fecaca;
 }
+
+.alert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.alert-card {
+    background: #111827;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.alert-card img {
+    width: 100%;
+    display: block;
+}
+
+.alert-card-body {
+    padding: 0.75rem 1rem;
+}
+
+.alert-label {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.alert-meta {
+    font-size: 0.8rem;
+    color: #9ca3af;
+}
+
+.saved-badge {
+    display: inline-block;
+    margin-top: 0.4rem;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: 999px;
+    background: #065f46;
+    color: #d1fae5;
+}
+
+.btn-save,
+.btn-delete {
+    padding: 0.35rem 0.8rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.btn-save {
+    background: #2563eb;
+    color: white;
+}
+
+.btn-save[disabled] {
+    background: #4b5563;
+    cursor: default;
+}
+
+.btn-delete {
+    background: #b91c1c;
+    color: white;
+}
+
+
+

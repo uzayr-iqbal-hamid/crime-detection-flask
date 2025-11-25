@@ -39,14 +39,23 @@ class Camera(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+# in app/models.py
+
 class Detection(db.Model):
     __tablename__ = "detections"
 
     id = db.Column(db.Integer, primary_key=True)
     camera_id = db.Column(db.Integer, db.ForeignKey("cameras.id"), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    crime_label = db.Column(db.String(100), nullable=False)
+    crime_label = db.Column(db.String(128), nullable=False)
     confidence = db.Column(db.Float, nullable=False)
-    frame_path = db.Column(db.String(255))  # optional: store snapshot path
+    frame_path = db.Column(db.String(256), nullable=True)
+
+    # 🔹 This MUST exist, because your code uses Detection.timestamp
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # 🔹 This you added for save/delete behaviour
+    is_saved = db.Column(db.Boolean, default=False, nullable=False)
 
     camera = db.relationship("Camera", backref="detections")
+
+

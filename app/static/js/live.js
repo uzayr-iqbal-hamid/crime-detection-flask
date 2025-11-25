@@ -11,12 +11,13 @@ function startPredictionPolling(cameraId) {
             }
             const data = await res.json();
             const label = data.label;
-            const conf = data.confidence;
+            const conf = data.confidence; // 0..1
 
             labelEl.textContent = label;
             confEl.textContent = (conf * 100).toFixed(1) + "%";
 
-            if (label !== "Normal" && conf >= 0.8) {
+            // Mark as danger only for non-normal labels with decent confidence
+            if (label !== "Normal Videos" && conf >= 0.6) {
                 badgeEl.className = "badge badge-danger";
             } else {
                 badgeEl.className = "badge badge-normal";

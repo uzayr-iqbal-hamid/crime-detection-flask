@@ -1,3 +1,4 @@
+import os
 import cv2
 import threading
 import time
@@ -13,13 +14,15 @@ from .model_inference import CrimeModel
 
 class CameraStream:
     """
-    v2: decouple capture and inference.
+    v2.1: decouple capture and inference, add post-processing + alert snapshots.
 
-    - Capture thread: only reads frames and updates shared buffers.
-    - Inference thread: periodically copies the buffer and runs the model.
-    - Streaming: always reads last_frame, overlays latest_detection on-the-fly.
-
-    Result: video stream stays smooth even if inference is slow.
+    - Capture thread: grabs frames and updates shared buffers.
+    - Inference thread: periodically runs the model on recent frames.
+    - Streaming: always uses last_frame + latest_detection for overlay.
+    - Post-processing:
+        * low-confidence -> treated as Normal
+        * crime alert only when label is confident AND stable
+        * snapshot saved for each alert and shown on dashboard
     """
 
     def __init__(self, camera_id: int, source: str, model: CrimeModel, app):
@@ -41,11 +44,22 @@ class CameraStream:
         self.clip_buffer: List = []
         self.clip_max_len = self.model.num_frames  # e.g. 16 frames
 
-        self.latest_detection: Optional[Tuple[str, float]] = None
+        # What we expose to the rest of the app (overlay + /stats)
+        self.latest_detection: Optional[Tuple[str, float]] = None  # (label, conf[0..1])
 
-        # How often to run inference (seconds)
-        self.inference_interval = 1.5
+        # Inference scheduling
+        self.inference_interval = 1.5  # seconds
 
+        # Post-processing / alert logic
+        self.conf_threshold = 0.75       # crime must exceed this to be considered
+        self.stable_required = 1        # need the same crime label N times in a row
+        self.alert_cooldown = 8.0       # seconds between alerts of the same type
+
+        self._pending_label: Optional[str] = None
+        self._pending_count: int = 0
+        self._last_alert_ts: float = 0.0
+
+    
     def start(self):
         if self.running:
             return
@@ -73,39 +87,155 @@ class CameraStream:
     def _open_capture(self):
         try:
             idx = int(self.source)
+            # This uses CAP_ANY, which in your test worked for index 1
             self.capture = cv2.VideoCapture(idx)
         except ValueError:
             self.capture = cv2.VideoCapture(self.source)
 
+
+
+
     def _capture_loop(self):
+        print(f"[CameraStream] Capture loop starting for camera {self.camera_id}, source={self.source}")
         self._open_capture()
         if not self.capture or not self.capture.isOpened():
             print(f"[CameraStream] Failed to open camera {self.camera_id} (source={self.source})")
             self.running = False
             return
 
+        fail_count = 0
+        max_failures = 50
+        frame_counter = 0
+
         while self.running:
             ret, frame = self.capture.read()
             if not ret or frame is None:
+                fail_count += 1
+                if fail_count >= max_failures:
+                    print(f"[CameraStream] Too many failures on camera {self.camera_id}, stopping stream.")
+                    self.running = False
+                    break
                 time.sleep(0.1)
                 continue
 
-            # Update last_frame and clip_buffer under lock
-            with self.lock:
-                # Keep a copy for streaming
-                self._last_frame = frame.copy()
+            fail_count = 0
+            frame_counter += 1
 
-                # Add to clip buffer for inference
+            if frame_counter % 30 == 0:
+                print(f"[CameraStream] Camera {self.camera_id}: captured {frame_counter} frames")
+
+            with self.lock:
+                self._last_frame = frame.copy()
                 self.clip_buffer.append(frame.copy())
-                # Keep up to 2 * clip_max_len frames to give inference some history
                 max_buffer = self.clip_max_len * 2
                 if len(self.clip_buffer) > max_buffer:
                     self.clip_buffer = self.clip_buffer[-max_buffer:]
 
-            # Target ~30 FPS capture
             time.sleep(0.03)
 
         self.stop()
+
+
+
+
+
+    def _post_process_label(self, label: str, conf: float) -> Tuple[str, float]:
+        """
+        Map raw (label, conf) from the model to what we show in UI.
+
+        Rules:
+        - If the model already says "Normal Videos" with decent confidence, keep it.
+        - If confidence for a crime label is low -> treat as Normal for display.
+        - Only high-confidence crimes will be displayed as such.
+        """
+        if label == "Normal Videos" and conf >= 0.5:
+            return label, conf
+
+        if conf >= self.conf_threshold:
+            # Confident crime prediction
+            return label, conf
+
+        # Low-confidence -> show as Normal
+        return "Normal Videos", 0.0
+
+    def _maybe_log_alert(self, label: str, conf: float, frames_for_model: List):
+        """
+        Decide whether to create a Detection row + save a snapshot.
+
+        Uses:
+        - confidence threshold
+        - stability over multiple inference cycles
+        - cooldown so we don't spam the DB
+        """
+        if label == "Normal Videos" or conf < self.conf_threshold:
+            # Reset pending streak when model isn't sure or says normal
+            self._pending_label = None
+            self._pending_count = 0
+            return
+
+        # Crime candidate with sufficient confidence
+        if self._pending_label == label:
+            self._pending_count += 1
+        else:
+            self._pending_label = label
+            self._pending_count = 1
+
+        now_ts = time.time()
+
+        if self._pending_count < self.stable_required:
+            # Not stable enough yet
+            return
+
+        # Check cooldown
+        if now_ts - self._last_alert_ts < self.alert_cooldown:
+            return
+
+        # At this point we consider it a real alert
+        self._last_alert_ts = now_ts
+
+        try:
+            # Snapshot: take the last frame of the clip used for this prediction
+            mid_idx = len(frames_for_model) // 2
+            snapshot = frames_for_model[mid_idx].copy()
+
+
+            # Overlay the crime label + confidence on the snapshot
+            text = f"{label} ({conf:.2f})"
+            cv2.putText(
+                snapshot,
+                text,
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.0,
+                (0, 0, 255),  # red text
+                2,
+            )
+
+            # Save image under static/detections
+            with self.app.app_context():
+                static_dir = os.path.join(self.app.root_path, "static")
+                det_dir = os.path.join(static_dir, "detections")
+                os.makedirs(det_dir, exist_ok=True)
+
+                filename = f"cam{self.camera_id}_{int(now_ts)}.jpg"
+                file_path = os.path.join(det_dir, filename)
+
+                cv2.imwrite(file_path, snapshot)
+
+                rel_path = f"detections/{filename}"
+
+                det = Detection(
+                    camera_id=self.camera_id,
+                    crime_label=label,
+                    confidence=conf,
+                    frame_path=rel_path,
+                )
+                db.session.add(det)
+                db.session.commit()
+
+        except Exception as e:
+            print(f"[CameraStream] DB/snapshot error on camera {self.camera_id}: {e}")
+
 
     def _inference_loop(self):
         while self.running:
@@ -119,28 +249,21 @@ class CameraStream:
                 frames_for_model = list(self.clip_buffer[-self.clip_max_len:])
 
             try:
-                label, conf = self.model.predict_clip(frames_for_model)
-                self.latest_detection = (label, conf)
+                # Raw prediction from VideoMAE
+                raw_label, raw_conf = self.model.predict_clip(frames_for_model)
 
-                # Log only anomalous events with good confidence
-                if label != "Normal Videos" and conf >= 0.8:
-                    try:
-                        # DB operations need an app context in this thread
-                        with self.app.app_context():
-                            det = Detection(
-                                camera_id=self.camera_id,
-                                crime_label=label,
-                                confidence=conf,
-                                frame_path=None,
-                            )
-                            db.session.add(det)
-                            db.session.commit()
-                    except Exception as e:
-                        print(f"[CameraStream] DB error on camera {self.camera_id}: {e}")
+                # What we show to UI (maps low-confidence crime -> Normal Videos)
+                display_label, display_conf = self._post_process_label(raw_label, raw_conf)
+                self.latest_detection = (display_label, display_conf)
+
+                # Decide whether to log an alert + snapshot based on raw_label/conf
+                self._maybe_log_alert(raw_label, raw_conf, frames_for_model)
 
             except Exception as e:
                 # Do not crash the thread on model errors
                 print(f"[CameraStream] Inference error on camera {self.camera_id}: {e}")
+
+
 
     def frames(self):
         """

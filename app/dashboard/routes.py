@@ -1,8 +1,9 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from . import dashboard_bp
 from ..models import Detection, Camera
 from ..extensions import db
+import os
 
 
 @dashboard_bp.route("/")
@@ -12,7 +13,6 @@ def dashboard():
     latest_detections = Detection.query.order_by(Detection.timestamp.desc()).limit(10)
     total_cameras = Camera.query.count()
 
-    # Very naive system stats (uptime injected in context_processor in __init__.py)
     return render_template(
         "dashboard.html",
         total_detections=total_detections,
@@ -34,3 +34,36 @@ def profile():
         return redirect(url_for("dashboard.profile"))
 
     return render_template("profile.html")
+
+
+# ======================================================
+#   ADD THESE TWO ROUTES **BELOW**
+# ======================================================
+
+@dashboard_bp.route("/detections/<int:detection_id>/save", methods=["POST"])
+@login_required
+def save_detection(detection_id):
+    det = Detection.query.get_or_404(detection_id)
+    det.is_saved = True
+    db.session.commit()
+    return redirect(url_for("dashboard.dashboard"))
+
+
+@dashboard_bp.route("/detections/<int:detection_id>/delete", methods=["POST"])
+@login_required
+def delete_detection(detection_id):
+    det = Detection.query.get_or_404(detection_id)
+
+    # delete associated snapshot image if it exists
+    if det.frame_path:
+        try:
+            static_root = current_app.static_folder
+            file_path = os.path.join(static_root, det.frame_path.replace("/", os.sep))
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"[Detection] Failed to remove snapshot file: {e}")
+
+    db.session.delete(det)
+    db.session.commit()
+    return redirect(url_for("dashboard.dashboard"))

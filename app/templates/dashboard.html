@@ -22,31 +22,55 @@
     </div>
 </div>
 
+{% if latest_detections %}
 <div class="card">
-    <h2>Recent Detections</h2>
-    {% if latest_detections %}
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-            <thead>
-                <tr style="border-bottom: 1px solid #374151;">
-                    <th align="left">Time</th>
-                    <th align="left">Camera</th>
-                    <th align="left">Label</th>
-                    <th align="left">Confidence</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for d in latest_detections %}
-                <tr style="border-bottom: 1px solid #111827;">
-                    <td>{{ d.timestamp }}</td>
-                    <td>{{ d.camera.name if d.camera else d.camera_id }}</td>
-                    <td>{{ d.crime_label }}</td>
-                    <td>{{ "%.2f"|format(d.confidence) }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No detections yet.</p>
-    {% endif %}
+    <h2>Alert Snapshots</h2>
+    <p style="font-size: 0.85rem; color: #9ca3af;">
+        Each card represents a detected event with its captured frame.
+    </p>
+
+    <div class="alert-grid">
+        {% for d in latest_detections %}
+            {% if d.frame_path %}
+            <div class="alert-card">
+                <img src="{{ url_for('static', filename=d.frame_path) }}" alt="{{ d.crime_label }}">
+
+                <div class="alert-card-body">
+                    <div class="alert-label">{{ d.crime_label }}</div>
+                    <div class="alert-meta">
+                        {{ d.timestamp }} · {{ "%.0f"|format(d.confidence * 100) }}% ·
+                        Camera: {{ d.camera.name if d.camera else d.camera_id }}
+                    </div>
+
+                    {% if d.is_saved %}
+                        <div class="saved-badge">Saved</div>
+                    {% endif %}
+                </div>
+
+                <div class="alert-actions" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <form method="POST" action="{{ url_for('dashboard.save_detection', detection_id=d.id) }}">
+                        <button type="submit"
+                                class="btn btn-save"
+                                {% if d.is_saved %}disabled{% endif %}>
+                            {% if d.is_saved %}Saved{% else %}Save{% endif %}
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('dashboard.delete_detection', detection_id=d.id) }}">
+                        <button type="submit" class="btn btn-delete">
+                            Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
 </div>
+{% else %}
+<div class="card">
+    <h2>Alert Snapshots</h2>
+    <p>No detections yet.</p>
+</div>
+{% endif %}
 {% endblock %}

@@ -1,6 +1,10 @@
-from flask import render_template, abort, jsonify
-from flask import request
+import os
+from flask import Blueprint, redirect, url_for, current_app, request
 from flask_login import login_required
+from app.extensions import db
+from app.models import Detection
+
+from flask import render_template, abort, jsonify
 from . import detection_bp
 from ..models import Camera
 from ..config import Config
@@ -65,3 +69,5 @@ def camera_stats(camera_id):
             "confidence": conf,
         }
     )
+
+
