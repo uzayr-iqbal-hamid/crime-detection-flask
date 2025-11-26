@@ -3,22 +3,82 @@
 {% block title %}Profile - Crime Detection{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 600px; margin: 0 auto;">
-    <h2>Profile</h2>
-    <form method="POST">
-        <label for="full_name">Full Name</label>
-        <input class="form-control" type="text" id="full_name" name="full_name"
-               value="{{ current_user.full_name or '' }}">
+<h1 class="page-title">Profile</h1>
 
-        <label for="organization">Organization</label>
-        <input class="form-control" type="text" id="organization" name="organization"
-               value="{{ current_user.organization or '' }}">
+<div class="profile-layout">
+    <div class="card profile-summary">
+        <div class="profile-avatar">
+            <span>
+                {{ (current_user.full_name or current_user.username or 'U')[0]|upper }}
+            </span>
+        </div>
+        <div class="profile-summary-text">
+            <h2>{{ current_user.full_name or current_user.username }}</h2>
+            <p class="profile-role">
+                {{ current_user.role|capitalize }} account
+            </p>
+            <p class="profile-meta">
+                {{ current_user.email or 'No email set' }}
+            </p>
+        </div>
+    </div>
 
-        <label for="phone">Phone</label>
-        <input class="form-control" type="text" id="phone" name="phone"
-               value="{{ current_user.phone or '' }}">
+    <div class="card profile-form-card">
+        <h2 class="card-title">Account details</h2>
+        <p class="card-subtitle">
+            Update your personal information. Changes are applied immediately.
+        </p>
 
-        <button class="btn" type="submit">Save</button>
-    </form>
+        <form method="POST" class="profile-form">
+            <div class="profile-grid">
+                <div class="form-group">
+                    <label for="full_name">Full Name</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        id="full_name"
+                        name="full_name"
+                        value="{{ current_user.full_name or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="organization">Organization</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        id="organization"
+                        name="organization"
+                        value="{{ current_user.organization or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        id="phone"
+                        name="phone"
+                        value="{{ current_user.phone or '' }}"
+                    >
+                </div>
+
+                <div class="form-group form-group-readonly">
+                    <label>Username</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        value="{{ current_user.username }}"
+                        readonly
+                    >
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <button class="btn btn-primary" type="submit">Save changes</button>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}

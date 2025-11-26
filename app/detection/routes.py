@@ -1,10 +1,6 @@
-import os
-from flask import Blueprint, redirect, url_for, current_app, request
-from flask_login import login_required
-from app.extensions import db
-from app.models import Detection
-
 from flask import render_template, abort, jsonify
+from flask_login import login_required
+
 from . import detection_bp
 from ..models import Camera
 from ..config import Config
@@ -18,7 +14,6 @@ def live_default():
     camera = Camera.query.filter_by(is_active=True).order_by(Camera.id.asc()).first()
     if not camera:
         abort(404, "No active cameras configured")
-
     return live_camera(camera.id)
 
 
@@ -71,3 +66,12 @@ def camera_stats(camera_id):
     )
 
 
+@detection_bp.route("/stop/<int:camera_id>", methods=["POST"])
+@login_required
+def stop_camera(camera_id):
+    """Stop a camera stream and its capture loop."""
+    camera = Camera.query.get_or_404(camera_id)
+    cm = CameraManager.get_instance(Config.CRIME_MODEL_PATH)
+    cm.stop_stream(camera.id)
+    # No content needed; frontend just needs success
+    return ("", 204)

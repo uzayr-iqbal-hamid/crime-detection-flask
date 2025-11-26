@@ -1,13 +1,13 @@
 import time
-from flask import Flask
+from flask import Flask, session
+from flask_login import current_user
+
 from .config import Config
 from .extensions import db, migrate, login_manager
 from .models import User
 from .auth import auth_bp
 from .dashboard import dashboard_bp
 from .detection import detection_bp
-
-APP_START_TIME = time.time()  # used for uptime stats
 
 
 def create_app(config_class=Config):
@@ -31,10 +31,24 @@ def create_app(config_class=Config):
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(detection_bp, url_prefix="/detection")
 
-    # Make uptime available in templates
+    # Make uptime available in templates (per-login session uptime)
     @app.context_processor
     def inject_uptime():
-        uptime_seconds = int(time.time() - APP_START_TIME)
+        """
+        uptime_seconds:
+        - If user is authenticated and we have login_start_ts in session:
+              now - login_start_ts
+        - Otherwise: 0
+        """
+        if current_user.is_authenticated:
+            login_ts = session.get("login_start_ts")
+            if login_ts:
+                uptime_seconds = max(0, int(time.time() - login_ts))
+            else:
+                uptime_seconds = 0
+        else:
+            uptime_seconds = 0
+
         return dict(uptime_seconds=uptime_seconds)
 
     return app

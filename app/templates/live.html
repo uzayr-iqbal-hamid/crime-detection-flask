@@ -3,39 +3,56 @@
 {% block title %}Live Detection - Crime Detection{% endblock %}
 
 {% block content %}
-<h1>Live Crime Detection</h1>
+<h1 class="page-title">Live crime detection</h1>
 
-<div class="card">
-    <form method="GET" action="{{ url_for('detection.live_camera', camera_id=selected_camera.id) }}">
-        <label for="camera-select">Camera</label>
-        <select id="camera-select" name="camera_id" class="form-control"
-                onchange="window.location.href='/detection/live/' + this.value;">
-            {% for cam in cameras %}
-                <option value="{{ cam.id }}" {% if cam.id == selected_camera.id %}selected{% endif %}>
-                    {{ cam.name }} ({{ cam.source }})
-                </option>
-            {% endfor %}
-        </select>
-    </form>
+<div class="card live-card">
+    <div class="card-header-row live-header">
+        <div>
+            <h2 class="card-title">Camera feed</h2>
+            <p class="card-subtitle">
+                Select a camera and view live predictions from the deep learning model.
+            </p>
+        </div>
 
-    <div class="live-wrapper" style="margin-top: 20px;">
+        <div class="live-controls">
+            <label for="camera-select" class="camera-label">Camera</label>
+            <select
+                id="camera-select"
+                name="camera_id"
+                class="form-control form-control-compact"
+                onchange="window.location.href='/detection/live/' + this.value;"
+            >
+                {% for cam in cameras %}
+                    <option value="{{ cam.id }}" {% if cam.id == selected_camera.id %}selected{% endif %}>
+                        {{ cam.name }} ({{ cam.source }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="live-wrapper">
         <div class="live-feed">
-            <img src="{{ url_for('detection.stream', camera_id=selected_camera.id) }}" alt="Live feed">
+            <img
+                src="{{ url_for('detection.stream', camera_id=selected_camera.id) }}"
+                alt="Live feed"
+            >
         </div>
 
         <div class="predictions-panel">
-            <h3>Current Prediction</h3>
+            <h3 class="panel-title">Current prediction</h3>
             <div id="prediction-badge" class="badge badge-normal">
                 <span id="prediction-label">Loading...</span>
             </div>
-            <p style="margin-top: 10px;">
+
+            <p class="prediction-confidence">
                 Confidence:
                 <span id="prediction-confidence">-</span>
             </p>
-            <p style="font-size: 0.85rem; color: #9ca3af;">
-                Predictions are generated in real-time by the deep learning model
-                and overlaid on the video frames. This panel shows the latest
-                label and confidence.
+
+            <p class="panel-description">
+                Predictions are generated periodically from recent frames.
+                This panel shows the latest predicted class and confidence score.
             </p>
         </div>
     </div>
@@ -45,6 +62,7 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/live.js') }}"></script>
 <script>
+    // keep your existing polling logic
     startPredictionPolling({{ selected_camera.id }});
 </script>
 {% endblock %}

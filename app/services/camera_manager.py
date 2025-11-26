@@ -52,37 +52,70 @@ class CameraStream:
 
         # Post-processing / alert logic
         self.conf_threshold = 0.75       # crime must exceed this to be considered
-        self.stable_required = 1        # need the same crime label N times in a row
-        self.alert_cooldown = 8.0       # seconds between alerts of the same type
+        self.stable_required = 1         # need the same crime label N times in a row
+        self.alert_cooldown = 8.0        # seconds between alerts of the same type
 
         self._pending_label: Optional[str] = None
         self._pending_count: int = 0
         self._last_alert_ts: float = 0.0
 
-    
     def start(self):
+        """Start capture + inference threads if not already running."""
         if self.running:
             return
 
+        print(f"[CameraStream] Starting camera {self.camera_id}, source={self.source}")
         self.running = True
 
         # Start capture loop (grabs frames continuously)
         self.capture_thread = threading.Thread(
-            target=self._capture_loop, daemon=True
+            target=self._capture_loop,
+            daemon=True,
         )
         self.capture_thread.start()
 
         # Start inference loop (periodically runs the model)
         self.inference_thread = threading.Thread(
-            target=self._inference_loop, daemon=True
+            target=self._inference_loop,
+            daemon=True,
         )
         self.inference_thread.start()
 
     def stop(self):
+        """
+        Stop capture + inference loops and release camera.
+
+        This is called from CameraManager (NOT from inside the capture thread).
+        """
+        if not self.running:
+            return
+
+        print(f"[CameraStream] Stopping camera {self.camera_id}")
         self.running = False
+
+        # Wait for threads to exit (with timeout so we don't hang forever)
+        if self.capture_thread and self.capture_thread.is_alive():
+            try:
+                self.capture_thread.join(timeout=2.0)
+            except RuntimeError:
+                # Just in case someone calls stop() from inside the same thread
+                pass
+
+        if self.inference_thread and self.inference_thread.is_alive():
+            try:
+                self.inference_thread.join(timeout=2.0)
+            except RuntimeError:
+                pass
+
+        # Release camera
         if self.capture is not None:
-            self.capture.release()
+            try:
+                self.capture.release()
+            except Exception as e:
+                print(f"[CameraStream] Error releasing camera {self.camera_id}: {e}")
             self.capture = None
+
+        print(f"[CameraStream] Camera {self.camera_id} stopped")
 
     def _open_capture(self):
         try:
@@ -91,9 +124,6 @@ class CameraStream:
             self.capture = cv2.VideoCapture(idx)
         except ValueError:
             self.capture = cv2.VideoCapture(self.source)
-
-
-
 
     def _capture_loop(self):
         print(f"[CameraStream] Capture loop starting for camera {self.camera_id}, source={self.source}")
@@ -131,13 +161,17 @@ class CameraStream:
                 if len(self.clip_buffer) > max_buffer:
                     self.clip_buffer = self.clip_buffer[-max_buffer:]
 
+            # ~30 fps-ish
             time.sleep(0.03)
 
-        self.stop()
-
-
-
-
+        # Loop exit cleanup (don't call self.stop() here to avoid self-join)
+        print(f"[CameraStream] Capture loop exited for camera {self.camera_id}")
+        if self.capture is not None:
+            try:
+                self.capture.release()
+            except Exception as e:
+                print(f"[CameraStream] Error releasing camera {self.camera_id} on exit: {e}")
+            self.capture = None
 
     def _post_process_label(self, label: str, conf: float) -> Tuple[str, float]:
         """
@@ -194,10 +228,9 @@ class CameraStream:
         self._last_alert_ts = now_ts
 
         try:
-            # Snapshot: take the last frame of the clip used for this prediction
+            # Snapshot: take the middle frame of the clip used for this prediction
             mid_idx = len(frames_for_model) // 2
             snapshot = frames_for_model[mid_idx].copy()
-
 
             # Overlay the crime label + confidence on the snapshot
             text = f"{label} ({conf:.2f})"
@@ -236,7 +269,6 @@ class CameraStream:
         except Exception as e:
             print(f"[CameraStream] DB/snapshot error on camera {self.camera_id}: {e}")
 
-
     def _inference_loop(self):
         while self.running:
             time.sleep(self.inference_interval)
@@ -263,7 +295,7 @@ class CameraStream:
                 # Do not crash the thread on model errors
                 print(f"[CameraStream] Inference error on camera {self.camera_id}: {e}")
 
-
+        print(f"[CameraStream] Inference loop exited for camera {self.camera_id}")
 
     def frames(self):
         """
@@ -306,6 +338,8 @@ class CameraStream:
                 b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
             )
 
+        print(f"[CameraStream] Frames generator exiting for camera {self.camera_id}")
+
 
 class CameraManager:
     _instance = None
@@ -325,18 +359,49 @@ class CameraManager:
         return cls._instance
 
     def get_or_create_stream(self, camera: Camera) -> CameraStream:
-        if camera.id in self.streams:
-            return self.streams[camera.id]
+        stream = self.streams.get(camera.id)
 
-        stream = CameraStream(
-            camera_id=camera.id,
-            source=camera.source,
-            model=self.model,
-            app=self.app,
-        )
-        self.streams[camera.id] = stream
-        stream.start()
+        # If existing stream is present but not running, drop it and recreate
+        if stream is not None and not stream.running:
+            try:
+                stream.stop()
+            except Exception:
+                pass
+            self.streams.pop(camera.id, None)
+            stream = None
+
+        if stream is None:
+            stream = CameraStream(
+                camera_id=camera.id,
+                source=camera.source,
+                model=self.model,
+                app=self.app,
+            )
+            self.streams[camera.id] = stream
+            stream.start()
+
         return stream
+
+    def stop_stream(self, camera_id: int):
+        """Stop and remove a single camera stream."""
+        stream = self.streams.get(camera_id)
+        if not stream:
+            return
+        try:
+            stream.stop()
+        finally:
+            self.streams.pop(camera_id, None)
+        print(f"[CameraManager] Stopped stream for camera {camera_id}")
+
+    def stop_all(self):
+        """Stop and clear all camera streams."""
+        for cam_id, stream in list(self.streams.items()):
+            try:
+                stream.stop()
+            except Exception as e:
+                print(f"[CameraManager] Failed to stop camera {cam_id}: {e}")
+        self.streams.clear()
+        print("[CameraManager] All camera streams stopped")
 
 
 def mjpeg_response(camera_stream: CameraStream) -> Response:

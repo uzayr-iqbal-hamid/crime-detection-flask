@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Crime Detection{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card card">
+        <div class="auth-header">
+            <h1 class="auth-title">Create account</h1>
+            <p class="auth-subtitle">Register as a viewer to access live detection and alerts.</p>
+        </div>
+
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input
+                    type="text"
+                    name="username"
+                    id="username"
+                    class="form-control"
+                    required
+                    autocomplete="username"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    name="email"
+                    id="email"
+                    class="form-control"
+                    required
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input
+                    type="password"
+                    name="password"
+                    id="password"
+                    class="form-control"
+                    required
+                    autocomplete="new-password"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input
+                    type="password"
+                    name="confirm_password"
+                    id="confirm_password"
+                    class="form-control"
+                    required
+                    autocomplete="new-password"
+                >
+            </div>
+
+            <button class="btn btn-primary btn-full" type="submit">
+                Register
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <span>Already have an account?</span>
+            <a href="{{ url_for('auth.login') }}">Login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

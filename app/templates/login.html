@@ -3,16 +3,47 @@
 {% block title %}Login - Crime Detection{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 420px; margin: 60px auto;">
-    <h2 style="margin-top: 0;">Login</h2>
-    <form method="POST">
-        <label for="username">Username or Email</label>
-        <input type="text" name="username" id="username" class="form-control" required>
+<div class="auth-wrapper">
+    <div class="auth-card card">
+        <div class="auth-header">
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-subtitle">Sign in to access the crime detection dashboard.</p>
+        </div>
 
-        <label for="password">Password</label>
-        <input type="password" name="password" id="password" class="form-control" required>
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="username">Username or Email</label>
+                <input
+                    type="text"
+                    name="username"
+                    id="username"
+                    class="form-control"
+                    required
+                    autocomplete="username"
+                >
+            </div>
 
-        <button class="btn" type="submit">Login</button>
-    </form>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input
+                    type="password"
+                    name="password"
+                    id="password"
+                    class="form-control"
+                    required
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <button class="btn btn-primary btn-full" type="submit">
+                Login
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <span>New here?</span>
+            <a href="{{ url_for('auth.register') }}">Create an account</a>
+        </div>
+    </div>
 </div>
 {% endblock %}
