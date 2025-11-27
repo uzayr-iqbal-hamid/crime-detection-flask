@@ -28,9 +28,10 @@ A **real-time crime classification system** powered by **VideoMAE** (Video Maske
 
 ## Screenshots
 
-| Dashboard (Light) | Dashboard (Dark) | Live Feed | Alert (Dark) | Email Alert Example |
-| :--- | :--- | :--- |
+| Dashboard (Light) | Dashboard (Dark) | Live Feed | Alert (Dark) |
+| :---: | :---: | :---: | :---: |
 | ![Dashboard Light](screenshots/dashboard-light.jpg) | ![Dashboard Dark](screenshots/dashboard-dark.jpg) | ![Live Feed](screenshots/live-feed.jpg) | ![Alert Dark](screenshots/email-alerts.jpg) |
+
 
 ---
 
