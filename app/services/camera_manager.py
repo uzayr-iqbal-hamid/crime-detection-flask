@@ -95,10 +95,15 @@ class CameraStream:
     def _open_capture(self):
         try:
             idx = int(self.source)
-            # This uses CAP_ANY, which in your tests worked for index 1
-            self.capture = cv2.VideoCapture(idx)
+            # Prefer DirectShow on Windows
+            self.capture = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
         except ValueError:
             self.capture = cv2.VideoCapture(self.source)
+
+        if not self.capture or not self.capture.isOpened():
+            print(f"[CameraStream] Failed to open camera {self.camera_id} (source={self.source})")
+            return
+
 
     def _capture_loop(self):
         print(f"[CameraStream] Capture loop starting for camera {self.camera_id}, source={self.source}")
