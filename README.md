@@ -66,7 +66,9 @@ crime-detection-flask/
 ├── .env.example
 ├── install.sh                    # One-click installer
 └── README.md                     # This file
+```
 
+---
 
 ## Installation
 
@@ -148,17 +150,19 @@ flask run
 - Open: http://localhost:5000
 - Default Login: admin / admin123
 
+---
+
 ## How It Works
 
-Async Triple-Thread Architecture
+**Async Triple-Thread Architecture**
 
 ```plaintext
 Webcam → [Capture Thread] → Frame Queue → [Inference Thread (VideoMAE)] → Result Queue → [MJPEG Stream] → Browser
 ```
 
-<i>Keeps 60 FPS streaming even when inference takes 300–800ms.</i>
+*Keeps 60 FPS streaming even when inference takes 300–800ms.*
 
-<strong>Smart Alert Logic (No Spam!)</strong>
+**Smart Alert Logic (No Spam!)**
 
 Triggers only when:
 - Crime label detected.
@@ -166,7 +170,9 @@ Triggers only when:
 - Same label repeated N times (default: 1).
 - Last alert > 8 seconds ago.
 
-<i>Then:</i> saves snapshot + logs to DB + sends email.
+*Then:* saves snapshot + logs to DB + sends email.
+
+---
 
 ## Known Issues & Limitations
 
@@ -178,9 +184,11 @@ Triggers only when:
 | No mobile app yet              | Planned      | React Native / Flutter version in roadmap              |
 | OS Compatibility               | Tested       | Fully works on macOS & Windows · Raspberry Pi untested |
 
+---
+
 ## Developer Onboarding
 
-Quick Start
+**Quick Start**
 
 ```bash
 # Quick start for new devs
@@ -190,7 +198,8 @@ cd crime-detection-flask
 flask run
 ```
 
-Useful Commands
+**Useful Commands**
+
 ```bash
 # Format code
 black .
@@ -208,7 +217,8 @@ flask shell
 rm -rf app/static/detections/*
 ```
 
-Branching Strategy
+**Branching Strategy**
+
 ```bash
 git checkout main && git pull
 git checkout -b feature/your-feature-name
@@ -219,7 +229,8 @@ git commit -m "feat: add sound-based violence detection"
 git push -u origin feature/your-feature-name
 ```
 
-Cleaning Old Snapshots
+**Cleaning Old Snapshots**
+
 ```bash
 # Remove all snapshots (safe)
 rm -rf app/static/detections/*
@@ -228,9 +239,13 @@ rm -rf app/static/detections/*
 find app/static/detections/ -mtime +7 -delete
 ```
 
+---
+
 ## License
 
 This project is private and intended for internal/team use only. Not licensed for public redistribution unless explicitly authorized.
+
+---
 
 ## Contributing
 
