@@ -4,7 +4,7 @@ import threading
 import time
 from typing import Dict, Optional, Tuple, List
 
-from flask import Response, stream_with_context, current_app
+from flask import Response, stream_with_context, current_app, url_for
 
 from ..models import Camera, Detection
 from ..extensions import db
@@ -23,6 +23,7 @@ class CameraStream:
         * low-confidence -> treated as Normal
         * crime alert only when label is confident AND stable
         * snapshot saved for each alert and shown on dashboard
+        * OPTIONAL: send email alerts via Resend
     """
 
     def __init__(self, camera_id: int, source: str, model: CrimeModel, app):
@@ -59,68 +60,42 @@ class CameraStream:
         self._pending_count: int = 0
         self._last_alert_ts: float = 0.0
 
+    # -------------------------------------------------------------------------
+    # Lifecycle
+    # -------------------------------------------------------------------------
+
     def start(self):
-        """Start capture + inference threads if not already running."""
         if self.running:
             return
 
-        print(f"[CameraStream] Starting camera {self.camera_id}, source={self.source}")
         self.running = True
 
         # Start capture loop (grabs frames continuously)
         self.capture_thread = threading.Thread(
-            target=self._capture_loop,
-            daemon=True,
+            target=self._capture_loop, daemon=True
         )
         self.capture_thread.start()
 
         # Start inference loop (periodically runs the model)
         self.inference_thread = threading.Thread(
-            target=self._inference_loop,
-            daemon=True,
+            target=self._inference_loop, daemon=True
         )
         self.inference_thread.start()
 
     def stop(self):
-        """
-        Stop capture + inference loops and release camera.
-
-        This is called from CameraManager (NOT from inside the capture thread).
-        """
-        if not self.running:
-            return
-
-        print(f"[CameraStream] Stopping camera {self.camera_id}")
         self.running = False
-
-        # Wait for threads to exit (with timeout so we don't hang forever)
-        if self.capture_thread and self.capture_thread.is_alive():
-            try:
-                self.capture_thread.join(timeout=2.0)
-            except RuntimeError:
-                # Just in case someone calls stop() from inside the same thread
-                pass
-
-        if self.inference_thread and self.inference_thread.is_alive():
-            try:
-                self.inference_thread.join(timeout=2.0)
-            except RuntimeError:
-                pass
-
-        # Release camera
         if self.capture is not None:
-            try:
-                self.capture.release()
-            except Exception as e:
-                print(f"[CameraStream] Error releasing camera {self.camera_id}: {e}")
+            self.capture.release()
             self.capture = None
 
-        print(f"[CameraStream] Camera {self.camera_id} stopped")
+    # -------------------------------------------------------------------------
+    # Capture
+    # -------------------------------------------------------------------------
 
     def _open_capture(self):
         try:
             idx = int(self.source)
-            # This uses CAP_ANY, which in your test worked for index 1
+            # This uses CAP_ANY, which in your tests worked for index 1
             self.capture = cv2.VideoCapture(idx)
         except ValueError:
             self.capture = cv2.VideoCapture(self.source)
@@ -161,17 +136,13 @@ class CameraStream:
                 if len(self.clip_buffer) > max_buffer:
                     self.clip_buffer = self.clip_buffer[-max_buffer:]
 
-            # ~30 fps-ish
             time.sleep(0.03)
 
-        # Loop exit cleanup (don't call self.stop() here to avoid self-join)
-        print(f"[CameraStream] Capture loop exited for camera {self.camera_id}")
-        if self.capture is not None:
-            try:
-                self.capture.release()
-            except Exception as e:
-                print(f"[CameraStream] Error releasing camera {self.camera_id} on exit: {e}")
-            self.capture = None
+        self.stop()
+
+    # -------------------------------------------------------------------------
+    # Post-processing + alert logic
+    # -------------------------------------------------------------------------
 
     def _post_process_label(self, label: str, conf: float) -> Tuple[str, float]:
         """
@@ -194,12 +165,12 @@ class CameraStream:
 
     def _maybe_log_alert(self, label: str, conf: float, frames_for_model: List):
         """
-        Decide whether to create a Detection row + save a snapshot.
+        Decide whether to create a Detection row + save a snapshot + send email.
 
         Uses:
         - confidence threshold
         - stability over multiple inference cycles
-        - cooldown so we don't spam the DB
+        - cooldown so we don't spam the DB / email
         """
         if label == "Normal Videos" or conf < self.conf_threshold:
             # Reset pending streak when model isn't sure or says normal
@@ -244,7 +215,7 @@ class CameraStream:
                 2,
             )
 
-            # Save image under static/detections
+            # DB + static files need the Flask app context
             with self.app.app_context():
                 static_dir = os.path.join(self.app.root_path, "static")
                 det_dir = os.path.join(static_dir, "detections")
@@ -266,8 +237,85 @@ class CameraStream:
                 db.session.add(det)
                 db.session.commit()
 
+                # Send email alert (best-effort, non-fatal if it fails)
+                self._send_alert_email(label, conf, rel_path, det.id)
+
         except Exception as e:
             print(f"[CameraStream] DB/snapshot error on camera {self.camera_id}: {e}")
+
+    def _send_alert_email(self, label: str, conf: float, rel_path: str, detection_id: int):
+        """
+        Send an alert email via Resend for a newly created Detection.
+
+        Uses:
+        - RESEND_API_KEY
+        - ALERT_EMAIL_FROM
+        - ALERT_EMAIL_TO
+
+        If any of these are missing or Resend is not installed, it silently skips.
+        """
+        try:
+            # Config values from Flask app
+            api_key = self.app.config.get("RESEND_API_KEY")
+            from_email = self.app.config.get("ALERT_EMAIL_FROM")
+            to_mail = self.app.config.get("ALERT_EMAIL_TO")
+
+            if not api_key or not from_email or not to_mail:
+                # Email alerts not configured
+                return
+
+            try:
+                import resend
+            except ImportError:
+                print("[Email] 'resend' package not installed; skipping email alert.")
+                return
+
+            resend.api_key = api_key
+
+            # Build useful links
+            snapshot_url = url_for("static", filename=rel_path, _external=True)
+            dashboard_url = url_for("dashboard.dashboard", _external=True)
+
+            subject = f"[Crime Detection] {label} detected on camera {self.camera_id}"
+
+            html = f"""
+                <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 8px 0;">
+                    <h2 style="margin: 0 0 8px;">Crime alert: {label}</h2>
+                    <p style="margin: 4px 0;">Camera ID: <strong>{self.camera_id}</strong></p>
+                    <p style="margin: 4px 0;">Confidence: <strong>{conf:.2f}</strong></p>
+                    <p style="margin: 4px 0;">Detection ID: <strong>{detection_id}</strong></p>
+
+                    <p style="margin: 12px 0;">
+                        <a href="{snapshot_url}" style="color: #2563eb; text-decoration: none;">
+                            View snapshot
+                        </a>
+                        &nbsp;·&nbsp;
+                        <a href="{dashboard_url}" style="color: #2563eb; text-decoration: none;">
+                            Open dashboard
+                        </a>
+                    </p>
+
+                    <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">
+                        This email was generated automatically by the Crime Detection system.
+                    </p>
+                </div>
+            """
+
+            params: dict = {
+                "from": from_email,
+                "to": [to_mail],
+                "subject": subject,
+                "html": html,
+            }
+
+            resend.Emails.send(params)
+
+        except Exception as e:
+            print(f"[Email] Failed to send alert email: {e}")
+
+    # -------------------------------------------------------------------------
+    # Inference loop
+    # -------------------------------------------------------------------------
 
     def _inference_loop(self):
         while self.running:
@@ -288,14 +336,16 @@ class CameraStream:
                 display_label, display_conf = self._post_process_label(raw_label, raw_conf)
                 self.latest_detection = (display_label, display_conf)
 
-                # Decide whether to log an alert + snapshot based on raw_label/conf
+                # Decide whether to log an alert + snapshot + email based on raw_label/conf
                 self._maybe_log_alert(raw_label, raw_conf, frames_for_model)
 
             except Exception as e:
                 # Do not crash the thread on model errors
                 print(f"[CameraStream] Inference error on camera {self.camera_id}: {e}")
 
-        print(f"[CameraStream] Inference loop exited for camera {self.camera_id}")
+    # -------------------------------------------------------------------------
+    # MJPEG streaming
+    # -------------------------------------------------------------------------
 
     def frames(self):
         """
@@ -338,8 +388,6 @@ class CameraStream:
                 b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
             )
 
-        print(f"[CameraStream] Frames generator exiting for camera {self.camera_id}")
-
 
 class CameraManager:
     _instance = None
@@ -359,49 +407,26 @@ class CameraManager:
         return cls._instance
 
     def get_or_create_stream(self, camera: Camera) -> CameraStream:
-        stream = self.streams.get(camera.id)
+        if camera.id in self.streams:
+            return self.streams[camera.id]
 
-        # If existing stream is present but not running, drop it and recreate
-        if stream is not None and not stream.running:
-            try:
-                stream.stop()
-            except Exception:
-                pass
-            self.streams.pop(camera.id, None)
-            stream = None
-
-        if stream is None:
-            stream = CameraStream(
-                camera_id=camera.id,
-                source=camera.source,
-                model=self.model,
-                app=self.app,
-            )
-            self.streams[camera.id] = stream
-            stream.start()
-
+        stream = CameraStream(
+            camera_id=camera.id,
+            source=camera.source,
+            model=self.model,
+            app=self.app,
+        )
+        self.streams[camera.id] = stream
+        stream.start()
         return stream
 
-    def stop_stream(self, camera_id: int):
-        """Stop and remove a single camera stream."""
-        stream = self.streams.get(camera_id)
-        if not stream:
-            return
-        try:
-            stream.stop()
-        finally:
-            self.streams.pop(camera_id, None)
-        print(f"[CameraManager] Stopped stream for camera {camera_id}")
-
     def stop_all(self):
-        """Stop and clear all camera streams."""
-        for cam_id, stream in list(self.streams.items()):
-            try:
-                stream.stop()
-            except Exception as e:
-                print(f"[CameraManager] Failed to stop camera {cam_id}: {e}")
+        """
+        Stop all running camera streams (used on logout).
+        """
+        for stream in self.streams.values():
+            stream.stop()
         self.streams.clear()
-        print("[CameraManager] All camera streams stopped")
 
 
 def mjpeg_response(camera_stream: CameraStream) -> Response:
