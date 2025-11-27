@@ -28,8 +28,18 @@ def create_app(config_class=Config):
 
     # Blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
-    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(dashboard_bp, url_prefix="/dashboard")
     app.register_blueprint(detection_bp, url_prefix="/detection")
+
+    # Root redirect to login if not authenticated
+    @app.route("/")
+    def index():
+        if current_user.is_authenticated:
+            from flask import redirect, url_for
+            return redirect(url_for("dashboard.dashboard"))
+        else:
+            from flask import redirect, url_for
+            return redirect(url_for("auth.login"))
 
     # Make uptime available in templates (per-login session uptime)
     @app.context_processor
