@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+
+{% block title %}Police Stations Map - Crime Detection{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+    .map-container {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+    
+    #map {
+        height: 500px;
+        border-radius: 8px;
+        border: 1px solid var(--color-border);
+    }
+    
+    .stations-sidebar {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        overflow-y: auto;
+        max-height: 500px;
+    }
+    
+    .station-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-border);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .station-item:hover {
+        background: var(--color-hover);
+    }
+    
+    .station-item.selected {
+        background: var(--color-primary)20;
+        border-left: 3px solid var(--color-primary);
+        padding-left: calc(1rem - 3px);
+    }
+    
+    .station-name {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .station-distance {
+        font-size: 0.85rem;
+        color: var(--color-text-secondary);
+        margin-bottom: 0.25rem;
+    }
+    
+    .station-address {
+        font-size: 0.8rem;
+        color: var(--color-text-secondary);
+        margin-bottom: 0.25rem;
+    }
+    
+    .station-phone {
+        font-size: 0.8rem;
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+    
+    @media (max-width: 768px) {
+        .map-container {
+            grid-template-columns: 1fr;
+        }
+        
+        #map {
+            height: 300px;
+        }
+        
+        .stations-sidebar {
+            max-height: 300px;
+        }
+    }
+    
+    .header-section {
+        padding: 1rem;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .location-control {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+    }
+    
+    .location-input {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .location-input input {
+        padding: 0.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: 4px;
+        background: var(--color-background);
+        color: var(--color-text);
+    }
+    
+    .location-button {
+        padding: 0.75rem 1rem;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        justify-content: center;
+        font-weight: 500;
+        transition: all 0.3s;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        flex: 1;
+    }
+    
+    .location-button:hover {
+        opacity: 0.9;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .location-button:active {
+        transform: translateY(0);
+    }
+    
+    .location-button.success {
+        background: var(--color-success);
+    }
+    
+    .location-button.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    
+    .location-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+    
+    .status-message {
+        margin-top: 0.5rem;
+        padding: 0.75rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        display: none;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .status-message.info {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bfdbfe;
+        display: flex;
+    }
+    
+    .status-message.success {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        display: flex;
+    }
+    
+    .status-message.error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: flex;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title"><i class="fas fa-map-marker-alt"></i> Nearest Police Stations</h1>
+
+<div class="header-section">
+    <p><i class="fas fa-info-circle"></i> Find the nearest police stations to SJBIT, Kengeri, Bangalore. Click on stations in the list to highlight them on the map.</p>
+</div>
+
+<div class="location-control">
+    <div class="location-input">
+        <input type="number" id="latInput" placeholder="Latitude" value="{{ user_lat }}" step="0.00001">
+        <input type="number" id="lngInput" placeholder="Longitude" value="{{ user_lng }}" step="0.00001">
+    </div>
+    <div class="location-buttons">
+        <button class="location-button" id="updateBtn" onclick="updateLocation()">
+            <i class="fas fa-search"></i> Update Location
+        </button>
+        <button class="location-button success" id="currentLocationBtn" onclick="getCurrentLocation()">
+            <i class="fas fa-location-arrow"></i> <span id="locBtnText">Use My Location</span>
+        </button>
+    </div>
+    <div class="status-message" id="statusMessage">
+        <i class="fas fa-info-circle"></i> <span id="statusText"></span>
+    </div>
+</div>
+
+<div class="map-container">
+    <div id="map"></div>
+    <div class="stations-sidebar">
+        <div style="padding: 1rem; border-bottom: 1px solid var(--color-border); font-weight: 600;">
+            <i class="fas fa-list"></i> Nearest Stations
+        </div>
+        <div id="stationsList"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const userLat = {{ user_lat }};
+    const userLng = {{ user_lng }};
+    const nearestStations = {{ nearest_stations|tojson }};
+    
+    // Initialize map
+    let map = L.map('map').setView([userLat, userLng], 13);
+    
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    // User location marker
+    const userMarker = L.marker([userLat, userLng], {
+        icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        })
+    }).addTo(map).bindPopup('<i class="fas fa-map-pin"></i> Your Location');
+    
+    // Police station markers
+    const markers = {};
+    nearestStations.forEach((station, index) => {
+        const color = ['red', 'orange', 'yellow', 'green', 'blue'][index] || 'gray';
+        const marker = L.marker([station.lat, station.lng], {
+            icon: L.icon({
+                iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            })
+        }).addTo(map);
+        
+        marker.bindPopup(`
+            <strong><i class="fas fa-police-box"></i> ${station.name}</strong><br>
+            Distance: ${station.distance} km<br>
+            Phone: <strong>${station.phone}</strong><br>
+            Address: ${station.address}
+        `);
+        
+        markers[station.id] = marker;
+    });
+    
+    // Populate stations list
+    function renderStationsList() {
+        const list = document.getElementById('stationsList');
+        list.innerHTML = '';
+        
+        nearestStations.forEach(station => {
+            const div = document.createElement('div');
+            div.className = 'station-item';
+            div.innerHTML = `
+                <div class="station-name">
+                    <i class="fas fa-police-box"></i> ${station.name}
+                </div>
+                <div class="station-distance">
+                    <i class="fas fa-ruler"></i> ${station.distance} km away
+                </div>
+                <div class="station-address">
+                    <i class="fas fa-map-marker-alt"></i> ${station.address}
+                </div>
+                <div class="station-phone">
+                    <i class="fas fa-phone"></i> ${station.phone}
+                </div>
+            `;
+            
+            div.addEventListener('click', () => {
+                // Update selected state
+                document.querySelectorAll('.station-item').forEach(item => item.classList.remove('selected'));
+                div.classList.add('selected');
+                
+                // Pan to station
+                map.flyTo([station.lat, station.lng], 15);
+                markers[station.id].openPopup();
+            });
+            
+            list.appendChild(div);
+        });
+    }
+    
+    renderStationsList();
+    
+    // Update location function
+    function updateLocation() {
+        const lat = parseFloat(document.getElementById('latInput').value);
+        const lng = parseFloat(document.getElementById('lngInput').value);
+        
+        if (isNaN(lat) || isNaN(lng)) {
+            alert('Please enter valid coordinates');
+            return;
+        }
+        
+        // Fetch updated station data from API
+        fetch(`/location/police-stations/nearby?lat=${lat}&lng=${lng}&radius=20`)
+            .then(response => response.json())
+            .then(data => {
+                // Update map center
+                map.setView([lat, lng], 13);
+                
+                // Remove old user marker
+                map.removeLayer(userMarker);
+                
+                // Add new user marker at updated location
+                const newUserMarker = L.marker([lat, lng], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    })
+                }).addTo(map).bindPopup('<i class="fas fa-map-pin"></i> Your Location');
+                
+                // Remove old markers
+                Object.values(markers).forEach(marker => map.removeLayer(marker));
+                
+                // Clear markers object
+                Object.keys(markers).forEach(key => delete markers[key]);
+                
+                // Add new station markers from API response
+                data.stations.slice(0, 5).forEach((station, index) => {
+                    const color = ['red', 'orange', 'yellow', 'green', 'blue'][index] || 'gray';
+                    const marker = L.marker([station.lat, station.lng], {
+                        icon: L.icon({
+                            iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(map);
+                    
+                    marker.bindPopup(`
+                        <strong><i class="fas fa-police-box"></i> ${station.name}</strong><br>
+                        Distance: ${station.distance} km<br>
+                        Phone: <strong>${station.phone}</strong><br>
+                        Address: ${station.address}
+                    `);
+                    
+                    markers[station.id] = marker;
+                });
+                
+                // Update stations list
+                renderStationsListFromData(data.stations.slice(0, 5));
+            })
+            .catch(error => {
+                console.error('Error fetching stations:', error);
+                alert('Error updating location. Please try again.');
+            });
+    }
+    
+    // Render stations list from data
+    function renderStationsListFromData(stationsList) {
+        const list = document.getElementById('stationsList');
+        list.innerHTML = '';
+        
+        stationsList.forEach(station => {
+            const div = document.createElement('div');
+            div.className = 'station-item';
+            div.innerHTML = `
+                <div class="station-name">
+                    <i class="fas fa-police-box"></i> ${station.name}
+                </div>
+                <div class="station-distance">
+                    <i class="fas fa-ruler"></i> ${station.distance} km away
+                </div>
+                <div class="station-address">
+                    <i class="fas fa-map-marker-alt"></i> ${station.address}
+                </div>
+                <div class="station-phone">
+                    <i class="fas fa-phone"></i> ${station.phone}
+                </div>
+            `;
+            
+            div.addEventListener('click', () => {
+                // Update selected state
+                document.querySelectorAll('.station-item').forEach(item => item.classList.remove('selected'));
+                div.classList.add('selected');
+                
+                // Pan to station
+                map.flyTo([station.lat, station.lng], 15);
+                if (markers[station.id]) {
+                    markers[station.id].openPopup();
+                }
+            });
+            
+            list.appendChild(div);
+        });
+    }
+    
+    // Get current location with improved error handling
+    function getCurrentLocation() {
+        const btn = document.getElementById('currentLocationBtn');
+        const btnText = document.getElementById('locBtnText');
+        const statusMsg = document.getElementById('statusMessage');
+        const statusText = document.getElementById('statusText');
+        
+        // Show loading state
+        btn.classList.add('loading');
+        btnText.textContent = 'Getting Location...';
+        statusMsg.className = 'status-message info';
+        statusText.textContent = 'Requesting your location...';
+        
+        if (!navigator.geolocation) {
+            btn.classList.remove('loading');
+            btnText.textContent = 'Use My Location';
+            statusMsg.className = 'status-message error';
+            statusText.textContent = 'Geolocation is not supported by your browser. Please enter coordinates manually.';
+            return;
+        }
+        
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
+                
+                console.log(`Location found: ${lat}, ${lng} (Accuracy: ${accuracy.toFixed(0)}m)`);
+                
+                // Update input fields
+                document.getElementById('latInput').value = lat.toFixed(5);
+                document.getElementById('lngInput').value = lng.toFixed(5);
+                
+                // Show success message
+                statusMsg.className = 'status-message success';
+                statusText.textContent = `Location found (Accuracy: ${accuracy.toFixed(0)}m). Updating map...`;
+                
+                // Update the map
+                setTimeout(() => {
+                    updateLocation();
+                    btn.classList.remove('loading');
+                    btnText.textContent = 'Use My Location';
+                }, 500);
+            },
+            (error) => {
+                btn.classList.remove('loading');
+                btnText.textContent = 'Use My Location';
+                
+                let errorMsg = 'Unable to get your location.';
+                
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMsg = 'Location permission denied. Please enable location access in your browser settings.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMsg = 'Location information is unavailable. Please try again or enter coordinates manually.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMsg = 'The request to get your location timed out. Please try again.';
+                        break;
+                    default:
+                        errorMsg = `Error: ${error.message}`;
+                }
+                
+                console.error('Geolocation error:', error);
+                statusMsg.className = 'status-message error';
+                statusText.textContent = errorMsg;
+            }
+        );
+    }
+</script>
+{% endblock %}

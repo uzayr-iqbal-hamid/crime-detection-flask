@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Detection Statistics - Crime Detection{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+    .stats-section {
+        margin-top: 0;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        padding: 1.5rem;
+        border-radius: var(--radius-card);
+        background-color: var(--surface);
+        border: 1px solid var(--border-subtle);
+        box-shadow: var(--shadow-soft);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow-medium);
+        transform: translateY(-2px);
+    }
+    
+    .stat-card-title {
+        font-size: 0.9rem;
+        color: var(--text-soft);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .stat-card-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin: 0;
+    }
+
+    .charts-wrapper {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+        .charts-wrapper {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title"><i class="fas fa-chart-bar"></i> Detection Statistics</h1>
+
+<!-- Summary Cards -->
+<div class="stats-cards">
+    <div class="stat-card">
+        <div class="stat-card-title">
+            <i class="fas fa-exclamation-triangle" style="color: #ff6b6b;"></i>
+            Total Detections
+        </div>
+        <p class="stat-card-value">{{ detection_labels|length > 0 and (detection_labels|map(attribute=1)|sum) or 0 }}</p>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-card-title">
+            <i class="fas fa-shield-alt" style="color: #ffd93d;"></i>
+            High Confidence Detections
+        </div>
+        <p class="stat-card-value">{{ confidence_ranges.get('High (0.9-1.0)', 0) }}</p>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-wrapper">
+    <!-- Detections by Type Chart -->
+    <div class="card stats-section">
+        <div class="card-header-row">
+            <div>
+                <h2 class="card-title"><i class="fas fa-pie-chart"></i> Detections by Type</h2>
+                <p class="card-subtitle">Distribution of detected crime types</p>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="typesChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Confidence Distribution Chart -->
+    <div class="card stats-section">
+        <div class="card-header-row">
+            <div>
+                <h2 class="card-title"><i class="fas fa-gauge-high"></i> Confidence Distribution</h2>
+                <p class="card-subtitle">Detection confidence levels</p>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="confidenceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Chart colors
+    const colors = {
+        primary: '#3b82f6',
+        success: '#10b981',
+        warning: '#f59e0b',
+        danger: '#ef4444',
+        secondary: '#6366f1'
+    };
+    
+    const chartBg = getComputedStyle(document.documentElement).getPropertyValue('--color-card').trim();
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim();
+    
+    // Types Chart
+    const typesCtx = document.getElementById('typesChart').getContext('2d');
+    const typesData = {{ detection_labels|tojson }};
+    const typesLabels = typesData.map(item => item[0]);
+    const typesCounts = typesData.map(item => item[1]);
+    
+    new Chart(typesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: typesLabels.length > 0 ? typesLabels : ['No Data'],
+            datasets: [{
+                data: typesCounts.length > 0 ? typesCounts : [1],
+                backgroundColor: [colors.danger, colors.warning, colors.primary, colors.success, colors.secondary],
+                borderColor: chartBg,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: textColor, padding: 20 }
+                }
+            }
+        }
+    });
+    
+    // Confidence Chart
+    const confidenceCtx = document.getElementById('confidenceChart').getContext('2d');
+    const confidenceData = {{ confidence_ranges|tojson }};
+    const confidenceLabels = Object.keys(confidenceData);
+    const confidenceCounts = Object.values(confidenceData);
+    
+    new Chart(confidenceCtx, {
+        type: 'bar',
+        data: {
+            labels: confidenceLabels,
+            datasets: [{
+                label: 'Count',
+                data: confidenceCounts,
+                backgroundColor: [colors.success, colors.warning, colors.danger],
+                borderColor: [colors.success, colors.warning, colors.danger],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    labels: { color: textColor }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: { color: textColor },
+                    grid: { color: textColor + '20' }
+                },
+                y: {
+                    ticks: { color: textColor },
+                    grid: { color: textColor + '20' }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

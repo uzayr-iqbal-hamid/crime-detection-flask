@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <title>{% block title %}Crime Detection System{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     {% block head %}{% endblock %}
 </head>
@@ -11,13 +13,28 @@
 <nav class="navbar">
     <div class="navbar-left">
         <div class="navbar-logo">
-            Crime Detection
+            <i class="fas fa-shield-alt"></i> Crime Detection
         </div>
 
         {% if current_user.is_authenticated %}
-            <a href="{{ url_for('dashboard.dashboard') }}" class="navbar-link">Dashboard</a>
-            <a href="{{ url_for('detection.live_default') }}" class="navbar-link">Live Detection</a>
-            <a href="{{ url_for('dashboard.profile') }}" class="navbar-link">Profile</a>
+            <a href="{{ url_for('dashboard.dashboard') }}" class="navbar-link">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+            <a href="{{ url_for('detection.live_default') }}" class="navbar-link">
+                <i class="fas fa-video"></i> Live Detection
+            </a>
+            <a href="{{ url_for('detection.predict_upload') }}" class="navbar-link">
+                <i class="fas fa-cloud-upload-alt"></i> Upload
+            </a>
+            <a href="{{ url_for('detection.statistics') }}" class="navbar-link">
+                <i class="fas fa-bar-chart"></i> Statistics
+            </a>
+            <a href="{{ url_for('location.police_stations') }}" class="navbar-link">
+                <i class="fas fa-map-marker-alt"></i> Police Stations
+            </a>
+            <a href="{{ url_for('dashboard.profile') }}" class="navbar-link">
+                <i class="fas fa-user"></i> Profile
+            </a>
         {% endif %}
     </div>
 
@@ -28,25 +45,31 @@
             data-uptime="{{ uptime_seconds }}"
             data-auth="{% if current_user.is_authenticated %}true{% else %}false{% endif %}"
         >
-            Uptime:
+            <i class="fas fa-clock"></i> Uptime:
             <span id="uptime-text">
                 {{ (uptime_seconds // 3600) }}h {{ (uptime_seconds // 60) % 60 }}m {{ uptime_seconds % 60 }}s
             </span>
         </span>
 
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-            <span class="theme-icon theme-icon-dark">☾</span>
-            <span class="theme-icon theme-icon-light">☼</span>
+            <span class="theme-icon theme-icon-dark"><i class="fas fa-moon"></i></span>
+            <span class="theme-icon theme-icon-light"><i class="fas fa-sun"></i></span>
         </button>
 
         {% if current_user.is_authenticated %}
             <span class="navbar-user">
-                {{ current_user.username }} ({{ current_user.role }})
+                <i class="fas fa-user-circle"></i> {{ current_user.username }} ({{ current_user.role }})
             </span>
-            <a href="{{ url_for('auth.logout') }}" class="navbar-link">Logout</a>
+            <a href="{{ url_for('auth.logout') }}" class="navbar-link">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
         {% else %}
-            <a href="{{ url_for('auth.login') }}" class="navbar-link">Login</a>
-            <a href="{{ url_for('auth.register') }}" class="navbar-link navbar-link-ghost">Register</a>
+            <a href="{{ url_for('auth.login') }}" class="navbar-link">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+            <a href="{{ url_for('auth.register') }}" class="navbar-link navbar-link-ghost">
+                <i class="fas fa-user-plus"></i> Register
+            </a>
         {% endif %}
     </div>
 </nav>
@@ -56,6 +79,7 @@
       {% if messages %}
           {% for category, message in messages %}
             <div class="card flash-message flash-{{ category }}">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
                 {{ message }}
             </div>
           {% endfor %}

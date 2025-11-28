@@ -3,30 +3,79 @@
 {% block title %}Dashboard - Crime Detection{% endblock %}
 
 {% block content %}
-<h1 class="page-title">System Dashboard</h1>
+<h1 class="page-title"><i class="fas fa-chart-line"></i> System Dashboard</h1>
 
 <div class="stats-grid">
     <div class="stat-box card">
-        <h3>Total Detections</h3>
+        <h3><i class="fas fa-exclamation-triangle" style="color: #ff6b6b;"></i> Total Detections</h3>
         <p class="stat-value">{{ total_detections }}</p>
     </div>
     <div class="stat-box card">
-        <h3>Active Cameras</h3>
+        <h3><i class="fas fa-video" style="color: #4ecdc4;"></i> Active Cameras</h3>
         <p class="stat-value">{{ total_cameras }}</p>
     </div>
     <div class="stat-box card">
-        <h3>Uptime</h3>
+        <h3><i class="fas fa-clock" style="color: #ffd93d;"></i> Uptime</h3>
         <p class="stat-value stat-value-small">
             {{ (uptime_seconds // 3600) }}h {{ (uptime_seconds // 60) % 60 }}m {{ uptime_seconds % 60 }}s
         </p>
     </div>
 </div>
 
+<!-- NEAREST POLICE STATION SECTION -->
+{% if nearest_station %}
+<div class="card nearest-station-card">
+    <div class="card-header-row">
+        <div>
+            <h2 class="card-title"><i class="fas fa-map-marker-alt" style="color: #e74c3c;"></i> Nearest Police Station</h2>
+            <p class="card-subtitle">
+                Quick access to the nearest police station for emergency assistance.
+            </p>
+        </div>
+        <a href="{{ url_for('location.police_stations') }}" class="btn btn-primary">
+            <i class="fas fa-map"></i> View All Stations
+        </a>
+    </div>
+
+    <div class="station-details">
+        <div class="station-info">
+            <h3><i class="fas fa-building"></i> {{ nearest_station.name }}</h3>
+            
+            <div class="station-field">
+                <label><i class="fas fa-phone"></i> Phone:</label>
+                <a href="tel:{{ nearest_station.phone }}" class="phone-link">
+                    {{ nearest_station.phone }}
+                </a>
+            </div>
+
+            <div class="station-field">
+                <label><i class="fas fa-map-marker-alt"></i> Address:</label>
+                <p>{{ nearest_station.address }}</p>
+            </div>
+
+            <div class="station-field">
+                <label><i class="fas fa-ruler"></i> Distance:</label>
+                <p><strong>{{ nearest_station.distance }} km</strong></p>
+            </div>
+        </div>
+
+        <div class="station-actions">
+            <a href="tel:{{ nearest_station.phone }}" class="btn btn-danger">
+                <i class="fas fa-phone"></i> Call Now
+            </a>
+            <a href="https://www.google.com/maps?q={{ nearest_station.lat }},{{ nearest_station.lng }}" target="_blank" class="btn btn-primary">
+                <i class="fas fa-directions"></i> Directions
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if latest_detections %}
 <div class="card">
     <div class="card-header-row">
         <div>
-            <h2 class="card-title">Alert snapshots</h2>
+            <h2 class="card-title"><i class="fas fa-camera"></i> Alert Snapshots</h2>
             <p class="card-subtitle">
                 High-confidence detections are captured as frames and shown here.
             </p>
@@ -40,14 +89,15 @@
                 <img src="{{ url_for('static', filename=d.frame_path) }}" alt="{{ d.crime_label }}">
 
                 <div class="alert-card-body">
-                    <div class="alert-label">{{ d.crime_label }}</div>
+                    <div class="alert-label"><i class="fas fa-shield-alt"></i> {{ d.crime_label }}</div>
                     <div class="alert-meta">
-                        {{ d.timestamp }} · {{ "%.0f"|format(d.confidence * 100) }}% ·
-                        Camera: {{ d.camera.name if d.camera else d.camera_id }}
+                        <i class="fas fa-calendar-alt"></i> {{ d.timestamp }} · 
+                        <i class="fas fa-percent"></i> {{ "%.0f"|format(d.confidence * 100) }}% ·
+                        <i class="fas fa-video"></i> {{ d.camera.name if d.camera else d.camera_id }}
                     </div>
 
                     {% if d.is_saved %}
-                        <div class="saved-badge">Saved</div>
+                        <div class="saved-badge"><i class="fas fa-check-circle"></i> Saved</div>
                     {% endif %}
                 </div>
 
@@ -58,13 +108,13 @@
                             class="btn-tag btn-tag-primary"
                             {% if d.is_saved %}disabled{% endif %}
                         >
-                            {% if d.is_saved %}Saved{% else %}Save{% endif %}
+                            <i class="fas fa-bookmark"></i> {% if d.is_saved %}Saved{% else %}Save{% endif %}
                         </button>
                     </form>
 
                     <form method="POST" action="{{ url_for('dashboard.delete_detection', detection_id=d.id) }}">
                         <button type="submit" class="btn-tag btn-tag-danger">
-                            Delete
+                            <i class="fas fa-trash"></i> Delete
                         </button>
                     </form>
                 </div>
@@ -75,8 +125,139 @@
 </div>
 {% else %}
 <div class="card">
-    <h2 class="card-title">Alert snapshots</h2>
-    <p class="card-subtitle">No detections yet. Live detections will appear here.</p>
+    <h2 class="card-title"><i class="fas fa-camera"></i> Alert Snapshots</h2>
+    <p class="card-subtitle"><i class="fas fa-info-circle"></i> No detections yet. Live detections will appear here.</p>
 </div>
 {% endif %}
+
+<style>
+    .nearest-station-card {
+        background: linear-gradient(135deg, rgba(231, 76, 60, 0.05) 0%, rgba(46, 204, 113, 0.05) 100%);
+        border-left: 5px solid #e74c3c;
+        margin-bottom: 2rem;
+    }
+
+    .card-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .station-details {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        padding: 1.5rem;
+        background: var(--color-background);
+        border-radius: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .station-details {
+            grid-template-columns: 1fr;
+        }
+
+        .card-header-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+    }
+
+    .station-info h3 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        color: var(--color-text);
+        font-size: 1.4rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .station-field {
+        margin-bottom: 1.25rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .station-field:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .station-field label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--color-text-secondary);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .station-field p {
+        margin: 0;
+        color: var(--color-text);
+        padding-left: 1.5rem;
+    }
+
+    .phone-link {
+        color: #e74c3c;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1.1rem;
+        padding-left: 1.5rem;
+        display: inline-block;
+        transition: all 0.3s;
+    }
+
+    .phone-link:hover {
+        color: #c0392b;
+        text-decoration: underline;
+    }
+
+    .station-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        justify-content: flex-start;
+    }
+
+    .station-actions a {
+        text-align: center;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c0392b;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        opacity: 0.9;
+        transform: translateY(-2px);
+    }
+</style>
 {% endblock %}

@@ -19,6 +19,9 @@ class User(UserMixin, db.Model):
     organization = db.Column(db.String(120))
     phone = db.Column(db.String(30))
 
+    # Relationship to emergency contacts
+    emergency_contacts = db.relationship('EmergencyContact', backref='user', lazy=True, cascade='all, delete-orphan')
+
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
 
@@ -57,5 +60,19 @@ class Detection(db.Model):
     is_saved = db.Column(db.Boolean, default=False, nullable=False)
 
     camera = db.relationship("Camera", backref="detections")
+
+
+class EmergencyContact(db.Model):
+    __tablename__ = "emergency_contacts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    contact_name = db.Column(db.String(120), nullable=False)
+    contact_phone = db.Column(db.String(30), nullable=False)
+    relationship = db.Column(db.String(50), nullable=False)  # e.g., "Family", "Friend", "Colleague", "Other"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<EmergencyContact {self.contact_name}>"
 
 

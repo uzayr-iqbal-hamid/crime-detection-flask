@@ -3,19 +3,19 @@
 {% block title %}Live Detection - Crime Detection{% endblock %}
 
 {% block content %}
-<h1 class="page-title">Live crime detection</h1>
+<h1 class="page-title"><i class="fas fa-video"></i> Live Crime Detection</h1>
 
 <div class="card live-card">
     <div class="card-header-row live-header">
         <div>
-            <h2 class="card-title">Camera feed</h2>
+            <h2 class="card-title"><i class="fas fa-camera"></i> Camera Feed</h2>
             <p class="card-subtitle">
-                Select a camera and view live predictions from the deep learning model.
+                <i class="fas fa-info-circle"></i> Select a camera and view live predictions from the deep learning model.
             </p>
         </div>
 
         <div class="live-controls">
-            <label for="camera-select" class="camera-label">Camera</label>
+            <label for="camera-select" class="camera-label"><i class="fas fa-video"></i> Camera</label>
             <select
                 id="camera-select"
                 name="camera_id"
@@ -24,10 +24,13 @@
             >
                 {% for cam in cameras %}
                     <option value="{{ cam.id }}" {% if cam.id == selected_camera.id %}selected{% endif %}>
-                        {{ cam.name }} ({{ cam.source }})
+                        <i class="fas fa-video"></i> {{ cam.name }} ({{ cam.source }})
                     </option>
                 {% endfor %}
             </select>
+            <a href="{{ url_for('detection.predict_upload') }}" class="btn btn-secondary upload-link" style="margin-left: 1rem;">
+                <i class="fas fa-cloud-upload-alt"></i> Upload Prediction
+            </a>
         </div>
     </div>
 
@@ -40,23 +43,65 @@
         </div>
 
         <div class="predictions-panel">
-            <h3 class="panel-title">Current prediction</h3>
+            <h3 class="panel-title"><i class="fas fa-chart-bar"></i> Current Prediction</h3>
             <div id="prediction-badge" class="badge badge-normal">
-                <span id="prediction-label">Loading...</span>
+                <span id="prediction-label"><i class="fas fa-spinner fa-spin"></i> Loading...</span>
             </div>
 
             <p class="prediction-confidence">
-                Confidence:
+                <i class="fas fa-gauge-high"></i> Confidence:
                 <span id="prediction-confidence">-</span>
             </p>
 
             <p class="panel-description">
-                Predictions are generated periodically from recent frames.
+                <i class="fas fa-info-circle"></i> Predictions are generated periodically from recent frames.
                 This panel shows the latest predicted class and confidence score.
             </p>
         </div>
     </div>
 </div>
+
+<style>
+    .live-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .upload-link {
+        background: #27ae60;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .upload-link:hover {
+        background: #229954;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+
+    @media (max-width: 768px) {
+        .live-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .upload-link {
+            margin-left: 0 !important;
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}

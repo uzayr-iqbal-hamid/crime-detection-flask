@@ -8,6 +8,7 @@ from .models import User
 from .auth import auth_bp
 from .dashboard import dashboard_bp
 from .detection import detection_bp
+from .location import location_bp
 
 
 def create_app(config_class=Config):
@@ -30,6 +31,7 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(dashboard_bp, url_prefix="/dashboard")
     app.register_blueprint(detection_bp, url_prefix="/detection")
+    app.register_blueprint(location_bp, url_prefix="/location")
 
     # Root redirect to login if not authenticated
     @app.route("/")
@@ -46,14 +48,14 @@ def create_app(config_class=Config):
     def inject_uptime():
         """
         uptime_seconds:
-        - If user is authenticated and we have login_start_ts in session:
-              now - login_start_ts
+        - If user is authenticated and we have camera_start_ts in session:
+              now - camera_start_ts (uptime when cameras are active)
         - Otherwise: 0
         """
         if current_user.is_authenticated:
-            login_ts = session.get("login_start_ts")
-            if login_ts:
-                uptime_seconds = max(0, int(time.time() - login_ts))
+            camera_ts = session.get("camera_start_ts")
+            if camera_ts:
+                uptime_seconds = max(0, int(time.time() - camera_ts))
             else:
                 uptime_seconds = 0
         else:

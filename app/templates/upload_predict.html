@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Prediction - Crime Detection{% endblock %}
+
+{% block head %}
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .upload-zone {
+        border: 3px dashed var(--color-primary);
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: var(--color-card);
+    }
+
+    .upload-zone:hover {
+        background: var(--color-hover);
+        border-color: var(--color-primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .upload-zone.dragover {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: var(--color-primary);
+        transform: scale(1.02);
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        color: var(--color-primary);
+        margin-bottom: 1rem;
+    }
+
+    .upload-text {
+        margin: 0;
+        color: var(--color-text);
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .upload-subtext {
+        color: var(--color-text-secondary);
+        margin-top: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .upload-button {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.75rem 2rem;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .upload-button:hover {
+        background: var(--color-primary);
+        opacity: 0.9;
+        transform: translateY(-2px);
+    }
+
+    #file-input {
+        display: none;
+    }
+
+    .file-info {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--color-background);
+        border-radius: 6px;
+        color: var(--color-text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .supported-formats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .format-group h4 {
+        margin-top: 0;
+        color: var(--color-text);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .format-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .format-list li {
+        padding: 0.5rem 0;
+        color: var(--color-text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .format-list li:before {
+        content: "✓";
+        color: #27ae60;
+        font-weight: bold;
+    }
+
+    .loading-container {
+        text-align: center;
+        margin-top: 2rem;
+        display: none;
+    }
+
+    .loading-spinner {
+        font-size: 2rem;
+        color: var(--color-primary);
+        margin-bottom: 1rem;
+    }
+
+    .prediction-result {
+        margin-top: 2rem;
+        padding: 2rem;
+        border-radius: 12px;
+        display: none;
+    }
+
+    .result-success {
+        background: rgba(39, 174, 96, 0.1);
+        border: 2px solid #27ae60;
+    }
+
+    .result-error {
+        background: rgba(231, 76, 60, 0.1);
+        border: 2px solid #e74c3c;
+    }
+
+    .result-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .result-icon {
+        font-size: 2rem;
+    }
+
+    .result-title {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .result-content {
+        margin-top: 1rem;
+    }
+
+    .result-field {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .result-field:last-child {
+        border-bottom: none;
+    }
+
+    .result-label {
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    .result-value {
+        color: var(--color-text);
+    }
+
+    .confidence-bar {
+        background: var(--color-border);
+        height: 24px;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3498db, #2ecc71);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: width 0.5s ease;
+    }
+
+    .try-another-btn {
+        margin-top: 1.5rem;
+        padding: 0.75rem 2rem;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .try-another-btn:hover {
+        opacity: 0.9;
+        transform: translateY(-2px);
+    }
+
+    .error-message {
+        color: #e74c3c;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    @media (max-width: 768px) {
+        .supported-formats {
+            grid-template-columns: 1fr;
+        }
+
+        .upload-zone {
+            padding: 2rem 1rem;
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title"><i class="fas fa-image"></i> Upload for Prediction</h1>
+
+<div class="upload-container">
+    <div class="card">
+        <div class="card-header-row">
+            <div>
+                <h2 class="card-title"><i class="fas fa-cloud-upload-alt"></i> Upload Media</h2>
+                <p class="card-subtitle">
+                    <i class="fas fa-info-circle"></i> Upload an image or video to get crime detection predictions.
+                </p>
+            </div>
+        </div>
+
+        <!-- Upload Zone -->
+        <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <p class="upload-text">Drag and drop your file here</p>
+            <p class="upload-subtext">or click to browse</p>
+            <button class="upload-button" onclick="document.getElementById('file-input').click()">
+                <i class="fas fa-folder-open"></i> Select File
+            </button>
+            <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.gif,.bmp,.mp4,.avi,.mov,.flv" />
+        </div>
+
+        <!-- File Info -->
+        <div class="file-info">
+            <i class="fas fa-info-circle"></i> Maximum file size: 100 MB
+        </div>
+
+        <!-- Supported Formats -->
+        <div class="supported-formats">
+            <div class="format-group">
+                <h4><i class="fas fa-image" style="color: #3498db;"></i> Image Formats</h4>
+                <ul class="format-list">
+                    <li>JPG / JPEG</li>
+                    <li>PNG</li>
+                    <li>GIF</li>
+                    <li>BMP</li>
+                </ul>
+            </div>
+            <div class="format-group">
+                <h4><i class="fas fa-video" style="color: #e74c3c;"></i> Video Formats</h4>
+                <ul class="format-list">
+                    <li>MP4</li>
+                    <li>AVI</li>
+                    <li>MOV</li>
+                    <li>FLV</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Container -->
+    <div class="loading-container" id="loading-container">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <p>Processing your file... <span id="loading-text">Analyzing</span></p>
+    </div>
+
+    <!-- Prediction Result -->
+    <div class="prediction-result" id="prediction-result">
+        <div class="result-header">
+            <div class="result-icon" id="result-icon">
+                <i class="fas fa-check-circle" style="color: #27ae60;"></i>
+            </div>
+            <h2 class="result-title" id="result-title">Prediction Result</h2>
+        </div>
+
+        <div class="result-content" id="result-content">
+            <!-- Result content will be filled by JavaScript -->
+        </div>
+
+        <button class="try-another-btn" onclick="resetUpload()">
+            <i class="fas fa-redo"></i> Try Another File
+        </button>
+    </div>
+</div>
+
+<script>
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const loadingContainer = document.getElementById('loading-container');
+    const predictionResult = document.getElementById('prediction-result');
+
+    // Drag and drop handlers
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileUpload();
+        }
+    });
+
+    // File input change handler
+    fileInput.addEventListener('change', handleFileUpload);
+
+    function handleFileUpload() {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        // Check file size
+        if (file.size > 100 * 1024 * 1024) {
+            showError('File too large (max 100 MB)');
+            return;
+        }
+
+        // Upload file
+        uploadFile(file);
+    }
+
+    function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Show loading state
+        uploadZone.style.display = 'none';
+        loadingContainer.style.display = 'block';
+        predictionResult.style.display = 'none';
+
+        // Simulate progress text changes
+        let loadingTexts = ['Analyzing', 'Processing', 'Predicting'];
+        let textIndex = 0;
+        const textInterval = setInterval(() => {
+            document.getElementById('loading-text').textContent = loadingTexts[textIndex];
+            textIndex = (textIndex + 1) % loadingTexts.length;
+        }, 500);
+
+        fetch('{{ url_for("detection.predict_upload") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            clearInterval(textInterval);
+            
+            if (data.success) {
+                showPrediction(data.prediction);
+            } else {
+                showError(data.error || 'An error occurred');
+            }
+        })
+        .catch(error => {
+            clearInterval(textInterval);
+            showError(error.message || 'Upload failed');
+        });
+    }
+
+    function showPrediction(prediction) {
+        const confidence = (prediction.confidence * 100).toFixed(2);
+        
+        const resultContent = `
+            <div class="result-field">
+                <span class="result-label"><i class="fas fa-shield-alt"></i> Prediction:</span>
+                <span class="result-value"><strong>${prediction.label}</strong></span>
+            </div>
+            <div class="result-field">
+                <span class="result-label"><i class="fas fa-percentage"></i> Confidence:</span>
+                <span class="result-value">
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: ${confidence}%">
+                            ${confidence}%
+                        </div>
+                    </div>
+                </span>
+            </div>
+            <div class="result-field">
+                <span class="result-label"><i class="fas fa-file-type"></i> File Type:</span>
+                <span class="result-value">${prediction.file_type === 'image' ? '<i class="fas fa-image"></i> Image' : '<i class="fas fa-video"></i> Video'}</span>
+            </div>
+            <div class="result-field">
+                <span class="result-label"><i class="fas fa-file-name"></i> Filename:</span>
+                <span class="result-value">${prediction.filename}</span>
+            </div>
+        `;
+
+        document.getElementById('result-content').innerHTML = resultContent;
+        
+        const resultElement = document.getElementById('prediction-result');
+        resultElement.classList.remove('result-error');
+        resultElement.classList.add('result-success');
+        
+        document.getElementById('result-icon').innerHTML = '<i class="fas fa-check-circle" style="color: #27ae60;"></i>';
+        document.getElementById('result-title').textContent = 'Prediction Complete';
+
+        loadingContainer.style.display = 'none';
+        predictionResult.style.display = 'block';
+    }
+
+    function showError(error) {
+        const resultContent = `
+            <div class="result-header">
+                <div class="result-icon">
+                    <i class="fas fa-times-circle" style="color: #e74c3c;"></i>
+                </div>
+                <h2 class="result-title">Error</h2>
+            </div>
+            <p class="error-message"><i class="fas fa-exclamation-circle"></i> ${error}</p>
+        `;
+
+        document.getElementById('result-content').innerHTML = resultContent;
+        
+        const resultElement = document.getElementById('prediction-result');
+        resultElement.classList.remove('result-success');
+        resultElement.classList.add('result-error');
+
+        loadingContainer.style.display = 'none';
+        predictionResult.style.display = 'block';
+    }
+
+    function resetUpload() {
+        fileInput.value = '';
+        uploadZone.style.display = 'block';
+        loadingContainer.style.display = 'none';
+        predictionResult.style.display = 'none';
+    }
+
+    // Click on upload zone to open file picker
+    uploadZone.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+</script>
+{% endblock %}

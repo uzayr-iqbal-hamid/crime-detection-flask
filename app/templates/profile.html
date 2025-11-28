@@ -2,83 +2,818 @@
 
 {% block title %}Profile - Crime Detection{% endblock %}
 
+{% block head %}
+<style>
+    .profile-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .profile-summary {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        background-color: var(--surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-soft);
+    }
+
+    .profile-avatar {
+        font-size: 3.5rem;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 80px;
+    }
+
+    .profile-summary-text h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.4rem;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .profile-role {
+        margin: 0.5rem 0;
+        color: var(--text-soft);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .profile-meta {
+        margin: 0;
+        color: var(--text-soft);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .profile-form-card {
+        position: relative;
+        background-color: var(--surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-soft);
+        padding: 1.5rem;
+    }
+    
+    .card-header-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        gap: 1rem;
+    }
+
+    .card-header-actions > div {
+        flex: 1;
+    }
+    
+    .edit-toggle-btn {
+        padding: 0.6rem 1.2rem;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: var(--radius-input);
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+    
+    .edit-toggle-btn:hover {
+        background: var(--accent-soft);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .edit-toggle-btn.editing {
+        background: var(--danger);
+    }
+
+    .edit-toggle-btn.editing:hover {
+        background: var(--danger-soft);
+    }
+    
+    .profile-form {
+        margin-top: 0;
+    }
+
+    .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        color: var(--text-soft);
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-control {
+        padding: 0.7rem 0.85rem;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--input-border);
+        background-color: var(--input-bg);
+        color: var(--text-main);
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        border-color: var(--input-border-focus);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+
+    .form-control:disabled {
+        background-color: var(--surface-subtle);
+        color: var(--text-soft);
+        cursor: not-allowed;
+        opacity: 0.7;
+        border-color: var(--border-subtle);
+    }
+    
+    .profile-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-subtle);
+    }
+    
+    .profile-actions button {
+        flex: 1;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        border-radius: var(--radius-pill);
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .profile-actions .btn {
+        background: var(--accent);
+        color: white;
+    }
+
+    .profile-actions .btn:hover {
+        background: var(--accent-soft);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .btn-cancel {
+        background: var(--border-subtle);
+        color: var(--text-main);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-pill);
+        padding: 0.75rem 1.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        flex: 1;
+    }
+    
+    .btn-cancel:hover {
+        background: var(--border-strong);
+        border-color: var(--border-strong);
+        transform: translateY(-1px);
+    }
+    
+    .profile-actions.hidden {
+        display: none;
+    }
+    
+    .form-control-info {
+        padding: 0.7rem 0.85rem;
+        background: var(--surface-subtle);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-input);
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+        .card-header-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+
+        .edit-toggle-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .profile-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-summary {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .profile-role, .profile-meta {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1 class="page-title">Profile</h1>
+<h1 class="page-title"><i class="fas fa-user"></i> Profile</h1>
 
 <div class="profile-layout">
-    <div class="card profile-summary">
+    <div class="profile-summary">
         <div class="profile-avatar">
             <span>
-                {{ (current_user.full_name or current_user.username or 'U')[0]|upper }}
+                <i class="fas fa-user-circle"></i>
             </span>
         </div>
         <div class="profile-summary-text">
-            <h2>{{ current_user.full_name or current_user.username }}</h2>
+            <h2><i class="fas fa-user"></i> {{ current_user.full_name or current_user.username }}</h2>
             <p class="profile-role">
-                {{ current_user.role|capitalize }} account
+                <i class="fas fa-shield-alt"></i> {{ current_user.role|capitalize }} account
             </p>
             <p class="profile-meta">
-                {{ current_user.email or 'No email set' }}
+                <i class="fas fa-envelope"></i> {{ current_user.email or 'No email set' }}
             </p>
         </div>
     </div>
 
-    <div class="card profile-form-card">
-        <h2 class="card-title">Account details</h2>
-        <p class="card-subtitle">
-            Update your personal information. Changes are applied immediately.
-        </p>
+    <div class="profile-form-card">
+        <div class="card-header-actions">
+            <div>
+                <h2 class="card-title"><i class="fas fa-edit"></i> Account Details</h2>
+                <p class="card-subtitle">
+                    <i class="fas fa-info-circle"></i> Click the edit button to modify your information.
+                </p>
+            </div>
+            <button class="edit-toggle-btn" id="editToggleBtn" onclick="toggleEditMode()">
+                <i class="fas fa-pencil-alt"></i> <span id="editBtnText">Edit</span>
+            </button>
+        </div>
 
-        <form method="POST" class="profile-form">
+        <form method="POST" class="profile-form" id="profileForm">
             <div class="profile-grid">
                 <div class="form-group">
-                    <label for="full_name">Full Name</label>
+                    <label for="full_name"><i class="fas fa-user-tie"></i> Full Name</label>
                     <input
                         class="form-control"
                         type="text"
                         id="full_name"
                         name="full_name"
                         value="{{ current_user.full_name or '' }}"
+                        disabled
                     >
                 </div>
 
                 <div class="form-group">
-                    <label for="organization">Organization</label>
+                    <label for="organization"><i class="fas fa-building"></i> Organization</label>
                     <input
                         class="form-control"
                         type="text"
                         id="organization"
                         name="organization"
                         value="{{ current_user.organization or '' }}"
+                        disabled
                     >
                 </div>
 
                 <div class="form-group">
-                    <label for="phone">Phone</label>
+                    <label for="phone"><i class="fas fa-phone"></i> Phone</label>
                     <input
                         class="form-control"
                         type="text"
                         id="phone"
                         name="phone"
                         value="{{ current_user.phone or '' }}"
+                        disabled
                     >
                 </div>
 
-                <div class="form-group form-group-readonly">
-                    <label>Username</label>
-                    <input
-                        class="form-control"
-                        type="text"
-                        value="{{ current_user.username }}"
-                        readonly
-                    >
+                <div class="form-group">
+                    <label><i class="fas fa-user-check"></i> Username</label>
+                    <div class="form-control-info">
+                        {{ current_user.username }}
+                    </div>
                 </div>
             </div>
 
-            <div class="profile-actions">
-                <button class="btn btn-primary" type="submit">Save changes</button>
+            <div class="profile-actions hidden" id="profileActions">
+                <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Save Changes</button>
+                <button class="btn-cancel" type="button" onclick="toggleEditMode()"><i class="fas fa-times"></i> Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- EMERGENCY CONTACTS SECTION -->
+    <div class="emergency-contacts-card">
+        <div class="card-header-actions">
+            <div>
+                <h2 class="card-title"><i class="fas fa-phone-volume"></i> Emergency Contacts</h2>
+                <p class="card-subtitle">
+                    <i class="fas fa-info-circle"></i> Store up to 3 emergency contacts for quick access.
+                </p>
+            </div>
+        </div>
+
+        {% if emergency_contacts %}
+            <div class="emergency-contacts-list">
+                {% for contact in emergency_contacts %}
+                    <div class="emergency-contact-card">
+                        <div class="contact-header">
+                            <div class="contact-info">
+                                <h4><i class="fas fa-user"></i> {{ contact.contact_name }}</h4>
+                                <p class="contact-phone"><i class="fas fa-phone"></i> {{ contact.contact_phone }}</p>
+                                <p class="contact-relationship"><i class="fas fa-link"></i> {{ contact.relationship }}</p>
+                            </div>
+                            <div class="contact-actions">
+                                <button type="button" class="btn-edit-contact" data-contact-id="{{ contact.id }}" onclick="editContact({{ contact.id }}, '{{ contact.contact_name }}', '{{ contact.contact_phone }}', '{{ contact.relationship }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('dashboard.delete_emergency_contact', contact_id=contact.id) }}" style="display: inline;">
+                                    <button type="submit" class="btn-delete-contact" onclick="return confirm('Delete this emergency contact?');">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-contacts-message">
+                <p><i class="fas fa-inbox"></i> No emergency contacts added yet.</p>
+            </div>
+        {% endif %}
+
+        <!-- Add Emergency Contact Form -->
+        {% if emergency_contacts|length < 3 %}
+            <div class="add-contact-form">
+                <h3><i class="fas fa-plus-circle"></i> Add Emergency Contact</h3>
+                <form method="POST" action="{{ url_for('dashboard.add_emergency_contact') }}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="contact_name"><i class="fas fa-user"></i> Contact Name</label>
+                            <input
+                                class="form-control"
+                                type="text"
+                                id="contact_name"
+                                name="contact_name"
+                                placeholder="e.g., Mom, Sister, Brother"
+                                maxlength="120"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contact_phone"><i class="fas fa-phone"></i> Phone Number</label>
+                            <input
+                                class="form-control"
+                                type="tel"
+                                id="contact_phone"
+                                name="contact_phone"
+                                placeholder="+91 98765 43210"
+                                maxlength="30"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="relationship"><i class="fas fa-link"></i> Relationship</label>
+                            <select class="form-control" id="relationship" name="relationship" required>
+                                <option value="">-- Select Relationship --</option>
+                                <option value="Family">Family</option>
+                                <option value="Friend">Friend</option>
+                                <option value="Colleague">Colleague</option>
+                                <option value="Police">Police</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success"><i class="fas fa-plus"></i> Add Contact</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="max-contacts-message">
+                <p><i class="fas fa-exclamation-triangle"></i> You have reached the maximum of 3 emergency contacts.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal for Editing Emergency Contact -->
+<div id="editContactModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edit Emergency Contact</h3>
+            <button type="button" class="modal-close" onclick="closeEditModal()">✕</button>
+        </div>
+        <form id="editContactForm" method="POST">
+            <div class="form-group">
+                <label for="edit_contact_name"><i class="fas fa-user"></i> Contact Name</label>
+                <input
+                    class="form-control"
+                    type="text"
+                    id="edit_contact_name"
+                    name="contact_name"
+                    maxlength="120"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="edit_contact_phone"><i class="fas fa-phone"></i> Phone Number</label>
+                <input
+                    class="form-control"
+                    type="tel"
+                    id="edit_contact_phone"
+                    name="contact_phone"
+                    maxlength="30"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="edit_relationship"><i class="fas fa-link"></i> Relationship</label>
+                <select class="form-control" id="edit_relationship" name="relationship" required>
+                    <option value="">-- Select Relationship --</option>
+                    <option value="Family">Family</option>
+                    <option value="Friend">Friend</option>
+                    <option value="Colleague">Colleague</option>
+                    <option value="Police">Police</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+                <button type="button" class="btn-cancel" onclick="closeEditModal()"><i class="fas fa-times"></i> Cancel</button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    let isEditMode = false;
+    let currentEditingContactId = null;
+    
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const inputs = document.querySelectorAll('#profileForm .form-control');
+        const editBtn = document.getElementById('editToggleBtn');
+        const editBtnText = document.getElementById('editBtnText');
+        const profileActions = document.getElementById('profileActions');
+        
+        if (isEditMode) {
+            // Enable edit mode
+            inputs.forEach(input => input.disabled = false);
+            editBtn.classList.add('editing');
+            editBtnText.textContent = 'Cancel';
+            profileActions.classList.remove('hidden');
+        } else {
+            // Disable edit mode
+            inputs.forEach(input => input.disabled = true);
+            editBtn.classList.remove('editing');
+            editBtnText.textContent = 'Edit';
+            profileActions.classList.add('hidden');
+        }
+    }
+
+    function editContact(contactId, name, phone, relationship) {
+        currentEditingContactId = contactId;
+        document.getElementById('edit_contact_name').value = name;
+        document.getElementById('edit_contact_phone').value = phone;
+        document.getElementById('edit_relationship').value = relationship;
+        document.getElementById('editContactForm').action = `/dashboard/emergency-contacts/${contactId}/edit`;
+        
+        const modal = document.getElementById('editContactModal');
+        modal.classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('editContactModal');
+        modal.classList.add('hidden');
+        currentEditingContactId = null;
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+        const modal = document.getElementById('editContactModal');
+        if (e.target === modal) {
+            closeEditModal();
+        }
+    });
+</script>
+
+<style>
+    .emergency-contacts-card {
+        background-color: var(--surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-soft);
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .emergency-contacts-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    .emergency-contact-card {
+        background-color: var(--surface-subtle);
+        border: 2px solid var(--accent);
+        border-radius: var(--radius-card);
+        padding: 1.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .emergency-contact-card:hover {
+        box-shadow: var(--shadow-medium);
+        transform: translateY(-2px);
+        border-color: var(--accent-soft);
+    }
+
+    .contact-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .contact-info h4 {
+        margin: 0 0 0.75rem 0;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .contact-phone,
+    .contact-relationship {
+        margin: 0.35rem 0;
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .contact-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .btn-edit-contact,
+    .btn-delete-contact {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 0.5rem;
+        border-radius: var(--radius-input);
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+    }
+
+    .btn-edit-contact {
+        color: var(--accent);
+    }
+
+    .btn-edit-contact:hover {
+        background: rgba(37, 99, 235, 0.1);
+        transform: scale(1.1);
+    }
+
+    .btn-delete-contact {
+        color: var(--danger);
+    }
+
+    .btn-delete-contact:hover {
+        background: rgba(185, 28, 28, 0.1);
+        transform: scale(1.1);
+    }
+
+    .no-contacts-message,
+    .max-contacts-message {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: var(--text-soft);
+        background: var(--surface-subtle);
+        border-radius: var(--radius-card);
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-subtle);
+    }
+
+    .max-contacts-message {
+        background: var(--surface-subtle);
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .add-contact-form {
+        background: var(--surface-subtle);
+        border: 2px dashed var(--border-strong);
+        border-radius: var(--radius-card);
+        padding: 1.5rem;
+        margin-top: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .add-contact-form:hover {
+        border-color: var(--accent);
+        background: var(--surface);
+    }
+
+    .add-contact-form h3 {
+        margin-top: 0;
+        margin-bottom: 1.25rem;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .form-row .form-group label {
+        color: var(--text-soft);
+        font-weight: 500;
+    }
+
+    .form-row select {
+        border-radius: var(--radius-input);
+        border: 1px solid var(--input-border);
+        background-color: var(--input-bg);
+        color: var(--text-main);
+        padding: 0.7rem 0.85rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .form-row select:focus {
+        border-color: var(--input-border-focus);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .emergency-contacts-list {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal.hidden {
+        display: none;
+    }
+
+    .modal-content {
+        background: var(--surface);
+        border-radius: var(--radius-card);
+        padding: 2rem;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: var(--shadow-medium);
+        border: 1px solid var(--border-subtle);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.25rem;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--text-soft);
+        transition: all 0.2s ease;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        color: var(--text-main);
+        background: var(--surface-subtle);
+        border-radius: var(--radius-input);
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-subtle);
+    }
+
+    .modal-actions button {
+        flex: 1;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-pill);
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .modal-actions .btn {
+        background: var(--accent);
+        color: white;
+    }
+
+    .modal-actions .btn:hover {
+        background: var(--accent-soft);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+</style>
 {% endblock %}
